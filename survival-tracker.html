@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="小鸟追踪">
+<link rel="manifest" href="data:application/json,{}">
+<title>🐦 小鸟生存追踪</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   CSS Variables & Theme — 森林昼夜
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── Day Forest (default) ── */
+  --bg-deep: #f3efe7;
+  --bg-space: #e8e2d4;
+  --bg-card: rgba(255,252,245,0.88);
+  --bg-card-solid: #fefcf5;
+  --bg-input: rgba(242,236,222,0.9);
+  --text: #3d2b1f;
+  --text2: #6b5a46;
+  --muted: #9b8b72;
+  --sep: rgba(120,100,70,0.12);
+  --accent: #5a8a3c;
+  --accent2: #4a7a2c;
+  --red: #c0554a;
+  --green: #4a8c3f;
+  --blue: #5a88a8;
+  --glow: rgba(90,138,60,0.15);
+  --tier-earth: #8b9d6b;
+  --tier-moon: #b8c8a0;
+  --tier-mars: #d4985e;
+  --tier-asteroid: #e0b860;
+  --tier-jupiter: #e09860;
+  --tier-deep: #b060e0;
+
+  --radius: 16px; --radius-sm: 12px; --radius-xs: 8px;
+  --nav-h: 70px;
+  --font: 'SF Pro Display', 'PingFang SC', 'Noto Sans SC', -apple-system, sans-serif;
+}
+
+/* ── Night Forest (18:00-05:59) ── */
+body.night {
+  --bg-deep: #171d13;
+  --bg-space: #1d2518;
+  --bg-card: rgba(28,36,22,0.88);
+  --bg-card-solid: #1c2416;
+  --bg-input: rgba(38,48,30,0.9);
+  --text: #e8e4d8;
+  --text2: #b8b4a3;
+  --muted: #787560;
+  --sep: rgba(255,255,255,0.06);
+  --accent: #c8a84c;
+  --accent2: #b8983c;
+  --red: #d47072;
+  --green: #6aac5e;
+  --blue: #7a9ac0;
+  --glow: rgba(200,168,76,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .8s ease, color .8s ease;
+  position: relative;
+}
+
+/* ── Forest ambient particles (leaves day / fireflies night) ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(1.2px 1.2px at 8% 12%, var(--accent), transparent),
+    radial-gradient(1px 1px at 22% 7%, var(--accent), transparent),
+    radial-gradient(1.5px 1.5px at 38% 18%, var(--accent), transparent),
+    radial-gradient(1px 1px at 52% 4%, var(--accent), transparent),
+    radial-gradient(1.3px 1.3px at 68% 11%, var(--accent), transparent),
+    radial-gradient(1px 1px at 82% 16%, var(--accent), transparent),
+    radial-gradient(1.2px 1.2px at 14% 28%, var(--accent), transparent),
+    radial-gradient(1px 1px at 58% 22%, var(--accent), transparent),
+    radial-gradient(1.4px 1.4px at 88% 32%, var(--accent), transparent),
+    radial-gradient(1px 1px at 32% 36%, var(--accent), transparent),
+    radial-gradient(1.1px 1.1px at 78% 40%, var(--accent), transparent),
+    radial-gradient(1.3px 1.3px at 45% 8%, var(--accent), transparent),
+    /* extra fireflies for night */
+    radial-gradient(2px 2px at 18% 55%, var(--glow), transparent),
+    radial-gradient(2.5px 2.5px at 42% 62%, var(--glow), transparent),
+    radial-gradient(1.8px 1.8px at 72% 48%, var(--glow), transparent),
+    radial-gradient(2.2px 2.2px at 55% 72%, var(--glow), transparent);
+  opacity: 0.5;
+  transition: opacity .8s ease;
+}
+body.night::before { opacity: 0.85; }
+
+#app { position: relative; z-index: 1; padding-bottom: calc(var(--nav-h) + 8px); }
+
+/* ── Leaf / firefly twinkle ── */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+
+/* ── Screen ── */
+.screen { display: none; padding: 16px 16px calc(var(--nav-h) + 16px); animation: fadeUp .2s ease; }
+.screen.active { display: block; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Bird header ── */
+.bird-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+#bird-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  font-size: 36px; transition: transform .3s; cursor: pointer; user-select: none;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; flex-shrink: 0;
+  background: var(--bg-input); border: 2px solid var(--sep);
+  filter: drop-shadow(0 0 6px var(--glow));
+  object-fit: cover;
+}
+#bird-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+#bird-avatar.bounce { animation: birdBounce .35s ease; }
+@keyframes birdBounce {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-14px); }
+  50% { transform: translateY(0); }
+  70% { transform: translateY(-6px); }
+}
+#bird-avatar.sing { animation: birdSing .6s ease; }
+@keyframes birdSing {
+  0%, 100% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(-8px) scale(1.1); }
+  50% { transform: translateY(-12px) scale(1.05); }
+  75% { transform: translateY(-5px) scale(1.08); }
+}
+
+.bird-info { flex: 1; }
+.bird-name { font-size: 18px; font-weight: 700; color: var(--text); }
+.bird-tier { font-size: 12px; color: var(--accent); font-weight: 500; margin-top: 2px; }
+
+/* ── Status cards ── */
+.status-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.status-card {
+  flex: 1; background: var(--bg-card); border-radius: var(--radius-sm);
+  padding: 12px; text-align: center; backdrop-filter: blur(12px);
+  border: 1px solid var(--sep);
+}
+.status-card .sc-val { font-size: 22px; font-weight: 700; color: var(--text); }
+.status-card .sc-label { font-size: 11px; color: var(--muted); margin-top: 3px; font-weight: 500; }
+.status-card.rank-card { border-color: rgba(240,180,90,0.2); }
+.status-card.rank-card .sc-val { color: var(--accent); }
+
+/* ── Madam quote card ── */
+.madam-card {
+  background: linear-gradient(135deg, rgba(240,180,90,0.08), rgba(240,180,90,0.03));
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 13px; color: var(--text2);
+  line-height: 1.55; font-style: italic;
+}
+.madam-card::before { content: 'Madam: '; font-weight: 600; font-style: normal; color: var(--accent); }
+
+/* ── Section ── */
+.section-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--muted); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* ── Task list ── */
+.task-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: var(--bg-card);
+  border-radius: var(--radius-sm); margin-bottom: 6px;
+  cursor: pointer; transition: all .18s; user-select: none;
+  border: 1px solid var(--sep); backdrop-filter: blur(12px);
+}
+.task-item:active { transform: scale(.98); }
+.task-item.done { opacity: .55; border-color: transparent; }
+.task-item.done .task-text { text-decoration: line-through; color: var(--muted); }
+
+.task-check {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid var(--sep); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; transition: all .2s; color: transparent;
+}
+.task-item.done .task-check { background: var(--green); border-color: var(--green); color: #fff; }
+
+.task-text { flex: 1; font-size: 15px; font-weight: 500; color: var(--text); }
+.task-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.task-cat { font-size: 10px; padding: 2px 7px; border-radius: 8px; flex-shrink: 0; font-weight: 500; }
+.task-cat.survival { background: rgba(240,180,90,0.15); color: var(--accent); }
+.task-cat.reading { background: rgba(107,159,255,0.15); color: var(--blue); }
+
+/* ── Ranking table ── */
+.rank-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+}
+.rank-update { font-size: 11px; color: var(--muted); }
+
+.rank-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: var(--radius-xs); margin-bottom: 3px;
+  font-size: 13px; transition: background .15s;
+}
+.rank-item.me { background: rgba(240,180,90,0.1); border-radius: var(--radius-xs); font-weight: 600; }
+.rank-num { width: 28px; font-weight: 600; color: var(--muted); text-align: center; flex-shrink: 0; }
+.rank-bird { font-size: 18px; flex-shrink: 0; width: 28px; height: 28px; text-align: center; cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: transform .15s; }
+.rank-bird:hover { transform: scale(1.2); }
+.rank-bird-img { background-size: cover; background-position: center; border: 1.5px solid var(--sep); }
+.rank-name { flex: 1; font-weight: 500; color: var(--text2); }
+.rank-item.me .rank-name { color: var(--accent); }
+.rank-score { font-weight: 600; color: var(--text); flex-shrink: 0; }
+.rank-item.me .rank-score { color: var(--accent); }
+
+.rank-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bird-chatter {
+  font-size: 11px; color: var(--accent); font-style: italic; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: var(--glow); padding: 2px 8px; border-radius: 10px;
+  display: inline-block; max-width: fit-content;
+  animation: chatterIn .35s ease;
+}
+@keyframes chatterIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
+
+/* ── Toasts ── */
+#toast-container {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 200;
+  display: flex; flex-direction: column; gap: 8px; width: calc(100% - 32px); max-width: 420px;
+}
+.toast {
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  background: var(--bg-card-solid); color: var(--text);
+  font-size: 14px; font-weight: 500; text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: toastIn .3s ease, toastOut .3s ease 2.2s forwards;
+  backdrop-filter: blur(20px);
+}
+.toast.promo { border-left: 3px solid var(--green); }
+.toast.demo { border-left: 3px solid var(--red); }
+.toast.info { border-left: 3px solid var(--accent); }
+
+@keyframes toastIn  { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-8px); } }
+
+/* ── Modal ── */
+.modal { position: fixed; inset: 0; z-index: 150; display: flex; align-items: flex-end; }
+.modal.hidden { display: none; }
+.modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+.modal-sheet {
+  position: relative; width: 100%; max-width: 480px; margin: 0 auto;
+  background: var(--bg-card-solid); border-radius: var(--radius) var(--radius) 0 0;
+  padding: 8px 20px 44px; z-index: 1;
+  box-shadow: 0 -4px 32px rgba(0,0,0,0.3);
+}
+.modal-sheet::before {
+  content: ''; display: block; width: 36px; height: 4px;
+  background: rgba(255,255,255,0.15); border-radius: 2px; margin: 8px auto 20px;
+}
+.modal-sheet h3 { font-size: 18px; font-weight: 700; margin-bottom: 14px; color: var(--text); }
+
+/* ── Bottom nav ── */
+#bottom-nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px; height: var(--nav-h);
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--sep);
+  display: flex; align-items: center; z-index: 50;
+}
+.nav-btn {
+  flex: 1; height: 100%; background: none; border: none;
+  color: var(--muted); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  font-size: 10px; font-weight: 500; cursor: pointer; transition: color .15s;
+}
+.nav-btn .nav-icon { font-size: 22px; }
+.nav-btn.active { color: var(--accent); }
+
+/* ── Buttons ── */
+.primary-btn {
+  width: 100%; padding: 13px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity .15s; margin-top: 6px;
+}
+.primary-btn:active { opacity: .8; }
+.outline-btn {
+  padding: 8px 14px; background: transparent; border: 1px solid var(--sep);
+  color: var(--text2); border-radius: var(--radius-xs); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+}
+.outline-btn:active { background: var(--bg-input); }
+.outline-btn.danger { color: var(--red); border-color: rgba(224,85,106,0.3); }
+
+.text-btn {
+  background: none; border: none; color: var(--accent); font-size: 13px; font-weight: 500; cursor: pointer;
+}
+
+/* ── Input ── */
+.text-input {
+  width: 100%; padding: 11px 14px; background: var(--bg-input); border: 1px solid var(--sep);
+  border-radius: var(--radius-xs); color: var(--text); font-size: 15px; outline: none; font-family: inherit;
+}
+.text-input:focus { border-color: var(--accent); }
+.text-input::placeholder { color: var(--muted); }
+
+/* ── Book shelf ── */
+.books-summary { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.book-card {
+  background: var(--bg-card); border-radius: var(--radius-sm); padding: 14px;
+  margin-bottom: 8px; border: 1px solid var(--sep); position: relative; overflow: hidden;
+  cursor: pointer; transition: all .15s;
+}
+.book-card:active { transform: scale(.98); }
+.book-card.reading { border-color: rgba(240,180,90,0.3); }
+.book-card .book-spine {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+}
+.book-card .book-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.book-card .book-bird { font-size: 20px; }
+.book-card .book-title { font-size: 15px; font-weight: 600; color: var(--text); flex: 1; }
+.book-card .book-author { font-size: 12px; color: var(--muted); }
+.book-card .book-status { font-size: 11px; padding: 3px 8px; border-radius: 8px; font-weight: 500; }
+.book-card .book-status.unread { background: rgba(107,112,128,0.15); color: var(--muted); }
+.book-card .book-status.reading { background: rgba(240,180,90,0.15); color: var(--accent); }
+.book-card .book-status.done { background: rgba(94,196,158,0.15); color: var(--green); }
+
+.progress-bar {
+  height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-top: 8px;
+}
+.progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s; }
+.book-progress-text { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ── Stats ── */
+#heatmap-wrap { margin-top: 12px; }
+.hm-row { display: flex; gap: 3px; margin-bottom: 3px; align-items: center; }
+.hm-dow { width: 22px; font-size: 10px; color: var(--muted); flex-shrink: 0; text-align: right; padding-right: 5px; }
+.hm-cell {
+  width: 13px; height: 13px; border-radius: 3px; background: rgba(255,255,255,0.06); flex-shrink: 0;
+}
+.hm-cell.l1 { background: rgba(94,196,158,0.25); }
+.hm-cell.l2 { background: rgba(94,196,158,0.45); }
+.hm-cell.l3 { background: rgba(94,196,158,0.65); }
+.hm-cell.l4 { background: rgba(94,196,158,0.85); }
+.hm-empty { background: rgba(255,255,255,0.03); }
+
+.hm-legend { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 11px; color: var(--muted); justify-content: flex-end; }
+
+/* ── Task mgmt ── */
+.task-edit-row {
+  display: flex; align-items: center; gap: 8px; padding: 10px 0;
+  border-bottom: 1px solid var(--sep);
+}
+.task-edit-row .task-text-edit { flex: 1; font-size: 14px; color: var(--text); }
+.task-edit-row .task-cat-edit { font-size: 10px; padding: 2px 7px; border-radius: 8px; font-weight: 500; }
+.toggle-switch {
+  width: 45px; height: 26px; border-radius: 13px; background: rgba(255,255,255,0.1);
+  cursor: pointer; transition: background .2s; flex-shrink: 0; position: relative;
+}
+.toggle-switch.on { background: var(--green); }
+.toggle-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px; border-radius: 50%; background: #fff;
+  transition: transform .2s;
+}
+.toggle-switch.on::after { transform: translateX(19px); }
+.add-task-row { display: flex; gap: 8px; margin-top: 12px; }
+.cat-select {
+  padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--sep);
+  border-radius: var(--radius-xs); color: var(--text); font-size: 14px;
+  outline: none; font-family: inherit;
+}
+
+/* ── Settings ── */
+.setting-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 0; border-bottom: 1px solid var(--sep);
+}
+.setting-label { font-size: 14px; font-weight: 500; color: var(--text); }
+.setting-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── Settlement modal ── */
+.settle-banner {
+  text-align: center; padding: 20px 0;
+}
+.settle-banner .settle-icon { font-size: 56px; }
+.settle-banner .settle-title { font-size: 22px; font-weight: 700; margin: 8px 0; }
+.settle-banner .settle-sub { font-size: 14px; color: var(--text2); }
+.settle-banner .settle-rank { font-size: 48px; font-weight: 700; color: var(--accent); margin: 12px 0; }
+.settle-banner.promote .settle-title { color: var(--green); }
+.settle-banner.demote .settle-title { color: var(--red); }
+.settle-banner.stay .settle-title { color: var(--text2); }
+
+/* ── Tier badge ── */
+.tier-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600;
+}
+.tier-badge.earth { background: rgba(139,157,195,0.15); color: var(--tier-earth); }
+.tier-badge.moon { background: rgba(200,214,229,0.15); color: var(--tier-moon); }
+.tier-badge.mars { background: rgba(232,152,94,0.15); color: var(--tier-mars); }
+.tier-badge.asteroid { background: rgba(240,192,96,0.15); color: var(--tier-asteroid); }
+.tier-badge.jupiter { background: rgba(240,160,96,0.15); color: var(--tier-jupiter); }
+.tier-badge.deep { background: rgba(192,96,240,0.15); color: var(--tier-deep); }
+
+.hidden { display: none !important; }
+
+/* ── Floating chat button ── */
+#float-chat-btn {
+  position: fixed; bottom: calc(var(--nav-h) + 20px); right: 16px; z-index: 60;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--accent); color: #fff; border: none;
+  font-size: 26px; cursor: pointer;
+  box-shadow: 0 4px 20px var(--glow);
+  transition: transform .2s, box-shadow .2s;
+  display: flex; align-items: center; justify-content: center;
+  animation: floatPulse 2.5s ease-in-out infinite;
+}
+#float-chat-btn:hover { box-shadow: 0 6px 28px var(--glow); }
+#float-chat-btn:active { transform: scale(.9); }
+@keyframes floatPulse {
+  0%, 100% { box-shadow: 0 4px 16px var(--glow); }
+  50% { box-shadow: 0 6px 28px var(--glow), 0 0 0 8px transparent; }
+}
+
+/* Chat button label */
+#float-chat-btn::after {
+  content: 'Madam';
+  position: absolute; right: 60px;
+  font-size: 11px; font-weight: 600; color: var(--text);
+  background: var(--bg-card); padding: 4px 10px; border-radius: 8px;
+  white-space: nowrap; opacity: 0; transition: opacity .3s;
+  pointer-events: none; border: 1px solid var(--sep);
+}
+#float-chat-btn:hover::after { opacity: 1; }
+
+/* ── Chat messages ── */
+.chat-msg { padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5; max-width: 85%; }
+.chat-msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
+.chat-msg.madam { align-self: flex-start; background: var(--bg-input); color: var(--text); border: 1px solid var(--sep); }
+.chat-msg .chat-sender { font-size: 10px; font-weight: 600; opacity: .7; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <!-- ════════════════════════════════════════════════════
+       Screen 1: 今日 (Today Dashboard)
+       ════════════════════════════════════════════════════ -->
+  <div class="screen active" id="screen-today">
+    <div class="bird-header">
+      <span id="bird-avatar">🐤</span>
+      <div class="bird-info">
+        <div class="bird-name" id="bird-name-display">小灰团</div>
+        <div class="bird-tier" id="bird-tier-display">🌍 地球轨道</div>
+      </div>
+    </div>
+
+    <div class="status-row">
+      <div class="status-card rank-card">
+        <div class="sc-val" id="status-rank">#42</div>
+        <div class="sc-label">排名 / 100</div>
+      </div>
+      <div class="status-card">
+        <div class="sc-val" id="status-score">73.5</div>
+        <div class="sc-label">树枝</div>
+      </div>
+      <div class="status-card">
+        <div class="sc-val" id="status-streak">3</div>
+        <div class="sc-label">连续天数</div>
+      </div>
+    </div>
+
+    <div class="madam-card" id="madam-quote">门在那边。</div>
+
+    <div class="section-label">📋 今日任务 <span id="task-progress" style="margin-left:auto;font-weight:400">0/0</span></div>
+    <div id="task-list"></div>
+
+    <div class="section-label" style="margin-top:18px;">🏆 小鸟排名 <span class="rank-update" id="rank-update-text">下次更新: --</span></div>
+    <div id="rank-list"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       Screen 2: 统计 (Stats)
+       ════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-stats">
+    <div class="screen-header"><h2 style="font-size:22px;font-weight:700;">📊 统计数据</h2></div>
+
+    <div class="status-row">
+      <div class="status-card">
+        <div class="sc-val" id="stat-longest">0</div>
+        <div class="sc-label">最长连续</div>
+      </div>
+      <div class="status-card">
+        <div class="sc-val" id="stat-total-done">0</div>
+        <div class="sc-label">累计完成</div>
+      </div>
+      <div class="status-card">
+        <div class="sc-val" id="stat-books">0</div>
+        <div class="sc-label">已读书籍</div>
+      </div>
+    </div>
+
+    <div class="section-label">🔥 完成热力图</div>
+    <div id="heatmap-wrap"></div>
+    <div class="hm-legend"><span>少</span><span class="hm-cell hm-empty" style="display:inline-block;width:11px;height:11px;"></span><span class="hm-cell l1" style="display:inline-block;width:11px;height:11px;"></span><span class="hm-cell l2" style="display:inline-block;width:11px;height:11px;"></span><span class="hm-cell l3" style="display:inline-block;width:11px;height:11px;"></span><span class="hm-cell l4" style="display:inline-block;width:11px;height:11px;"></span><span>多</span></div>
+
+    <div class="section-label" style="margin-top:18px;">🚀 等级历程</div>
+    <div id="tier-history"></div>
+
+    <div class="section-label" style="margin-top:18px;">🏅 徽章</div>
+    <div id="badges-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       Screen 3: 书架 (Books)
+       ════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-books">
+    <div class="screen-header"><h2 style="font-size:22px;font-weight:700;">📚 我的书架</h2></div>
+    <div class="books-summary" id="books-summary"></div>
+
+    <div class="section-label">📖 正在读</div>
+    <div id="books-reading"></div>
+
+    <div class="section-label">📕 待读</div>
+    <div id="books-unread"></div>
+
+    <div class="section-label">✅ 已读完</div>
+    <div id="books-done"></div>
+
+    <button class="primary-btn" onclick="showAddBookModal()" style="margin-top:12px;">+ 添加书籍</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       Screen 4: 任务管理 (Task Management)
+       ════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-tasks-mgmt">
+    <div class="screen-header"><h2 style="font-size:22px;font-weight:700;">📋 任务管理</h2></div>
+    <div class="section-label">🛁 生存任务</div>
+    <div id="tasks-survival-edit"></div>
+    <div class="section-label" style="margin-top:14px;">📖 阅读任务</div>
+    <div id="tasks-reading-edit"></div>
+    <div class="add-task-row">
+      <input class="text-input" id="new-task-input" placeholder="新任务..." style="flex:1;">
+      <select class="cat-select" id="new-task-cat"><option value="survival">🛁 生存</option><option value="reading">📖 阅读</option></select>
+    </div>
+    <button class="primary-btn" onclick="addTask()" style="margin-top:8px;">+ 添加任务</button>
+    <button class="outline-btn danger" onclick="resetAllData()" style="margin-top:16px;width:100%;">🔄 重置所有数据</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       Screen 5: 设置 (Settings)
+       ════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-settings">
+    <div class="screen-header"><h2 style="font-size:22px;font-weight:700;">⚙️ 设置</h2></div>
+
+    <div class="setting-row">
+      <div><div class="setting-label">小鸟头像</div><div class="setting-desc">上传自己的小鸟照片替代emoji</div></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div id="avatar-preview" style="width:40px;height:40px;border-radius:50%;background:var(--bg-input);display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;flex-shrink:0;"></div>
+        <button class="outline-btn" onclick="document.getElementById('avatar-upload').click()" style="white-space:nowrap;">上传</button>
+        <button class="outline-btn" onclick="removeAvatar()" style="white-space:nowrap;">清除</button>
+        <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="uploadAvatar(event)">
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div><div class="setting-label">小鸟名字</div></div>
+      <input class="text-input" id="set-bird-name" style="width:140px;" onchange="updateBirdName()">
+    </div>
+
+    <div class="setting-row">
+      <div><div class="setting-label">结算时间</div><div class="setting-desc">每日排名结算（0-23时）</div></div>
+      <input class="text-input" id="set-reset-hour" type="number" min="0" max="23" style="width:70px;" onchange="updateResetHour()">
+    </div>
+
+    <div class="setting-row">
+      <div><div class="setting-label">DeepSeek API Key</div><div class="setting-desc">接入AI小鸟毒舌 & Madam对话</div></div>
+      <input class="text-input" id="set-api-key" type="password" placeholder="sk-..." style="width:160px;" onchange="updateApiKey()">
+    </div>
+
+    <div class="setting-row">
+      <div><div class="setting-label">AI功能</div><div class="setting-desc">排名里点小鸟触发AI吐槽</div></div>
+      <div class="toggle-switch on" id="ai-toggle" onclick="toggleAI()"></div>
+    </div>
+
+    <button class="primary-btn" onclick="exportJSON()" style="margin-top:16px;">📤 导出数据 (JSON)</button>
+    <button class="outline-btn" onclick="document.getElementById('import-file').click()" style="margin-top:8px;width:100%;">📥 导入数据</button>
+    <input type="file" id="import-file" accept=".json" class="hidden" onchange="importJSON(event)">
+
+    <button class="outline-btn danger" onclick="resetAllData()" style="margin-top:20px;width:100%;">🔄 重置所有数据</button>
+
+    <div style="margin-top:24px;text-align:center;font-size:11px;color:var(--muted);">
+      小鸟生存追踪器 v1.0<br>
+      Made with Madam 🐦
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       AI Madam Chat Modal
+       ════════════════════════════════════════════════════ -->
+  <div class="modal hidden" id="madam-chat-modal">
+    <div class="modal-overlay" onclick="hideMadamChat()"></div>
+    <div class="modal-sheet" style="max-height:75dvh;display:flex;flex-direction:column;padding-bottom:16px;">
+      <h3>🐦 Madam</h3>
+      <div id="madam-chat-msgs" style="flex:1;overflow-y:auto;min-height:200px;max-height:45dvh;margin-bottom:10px;display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <input class="text-input" id="madam-chat-input" placeholder="跟Madam说..." style="flex:1;" onkeydown="if(event.key==='Enter')sendMadamMsg()">
+        <button class="primary-btn" onclick="sendMadamMsg()" style="width:auto;padding:11px 18px;margin-top:0;">发送</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating AI chat button (bottom right, above nav) -->
+  <button id="float-chat-btn" onclick="showMadamChat()" title="跟Madam聊聊">
+    🐦
+  </button>
+
+  <!-- Hidden file input for bird avatars -->
+  <input type="file" id="bird-avatar-upload" accept="image/*" class="hidden" onchange="onBirdAvatarUpload(event)">
+
+  <!-- Bottom Nav -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-screen="today"><span class="nav-icon">🏠</span><span>今日</span></button>
+    <button class="nav-btn" data-screen="stats"><span class="nav-icon">📊</span><span>统计</span></button>
+    <button class="nav-btn" data-screen="books"><span class="nav-icon">📚</span><span>书架</span></button>
+    <button class="nav-btn" data-screen="tasks-mgmt"><span class="nav-icon">📋</span><span>任务</span></button>
+    <button class="nav-btn" data-screen="settings"><span class="nav-icon">⚙️</span><span>设置</span></button>
+  </nav>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     Add Book Modal
+     ════════════════════════════════════════════════════ -->
+<div class="modal hidden" id="add-book-modal">
+  <div class="modal-overlay" onclick="hideAddBookModal()"></div>
+  <div class="modal-sheet">
+    <h3>📖 添加书籍</h3>
+    <input class="text-input" id="book-title-input" placeholder="书名" style="margin-bottom:8px;">
+    <input class="text-input" id="book-author-input" placeholder="作者" style="margin-bottom:8px;">
+    <input class="text-input" id="book-pages-input" type="number" placeholder="总页数" style="margin-bottom:12px;">
+    <button class="primary-btn" onclick="addBook()">添加</button>
+    <button class="text-btn" onclick="hideAddBookModal()" style="width:100%;margin-top:6px;color:var(--muted);">取消</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     Edit Book Progress Modal
+     ════════════════════════════════════════════════════ -->
+<div class="modal hidden" id="edit-book-modal">
+  <div class="modal-overlay" onclick="hideEditBookModal()"></div>
+  <div class="modal-sheet">
+    <h3>📝 更新进度</h3>
+    <div id="edit-book-title" style="font-size:16px;font-weight:600;margin-bottom:12px;"></div>
+    <input class="text-input" id="edit-book-page" type="number" placeholder="当前页码" style="margin-bottom:8px;">
+    <button class="primary-btn" onclick="updateBookProgress()">更新</button>
+    <button class="outline-btn" onclick="markBookDone()" style="width:100%;margin-top:6px;color:var(--green);">✅ 标记为已读完</button>
+    <button class="outline-btn danger" onclick="deleteBook()" style="width:100%;margin-top:6px;">🗑️ 删除此书</button>
+    <button class="text-btn" onclick="hideEditBookModal()" style="width:100%;margin-top:6px;color:var(--muted);">取消</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONSTANTS
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const BIRD_SPECIES = [
+  '麻雀','喜鹊','乌鸦','翠鸟','蜂鸟','知更鸟','画眉','百灵','黄鹂',
+  '啄木鸟','猫头鹰','信天翁','海鸥','企鹅','火烈鸟','孔雀','天鹅',
+  '丹顶鹤','鸵鸟','鹦鹉','白鹭','杜鹃','布谷','金丝雀','文鸟','绣眼',
+  '山雀','夜莺','隼','鸽','鹭鸶','鹩哥','伯劳','戴胜','太阳鸟','鹡鸰',
+  '柳莺','燕鸥','犀鸟','椋鸟','夜鹭'
+];
+
+// 每只鸟的整活设定
+const BIRD_CHATTER = {
+  '麻雀':   { emoji:'🐦', phrases:['叽叽喳喳！','啾！','吵死了但我就是要叫'], mood:'社牛' },
+  '喜鹊':   { emoji:'🐦', phrases:['有好事？','报喜不报忧','喳喳喳！'], mood:'乐观' },
+  '乌鸦':   { emoji:'🐦', phrases:['嘎——','啊——','今天也是黑色的一天'], mood:'丧' },
+  '翠鸟':   { emoji:'🐦', phrases:['噗通！（扎进水里）','抓到鱼了','我美吗'], mood:'高冷' },
+  '蜂鸟':   { emoji:'🐦', phrases:['嗡嗡嗡嗡嗡嗡','停不下来','翅膀要着火了'], mood:'狂躁' },
+  '知更鸟': { emoji:'🐦', phrases:['早起的虫呢？','天亮了起床！','啾～'], mood:'元气' },
+  '画眉':   { emoji:'🐦', phrases:['♪～♫～','（在练声）','今天嗓子不错'], mood:'精致' },
+  '百灵':   { emoji:'🐦', phrases:['啦啦啦～','全场最佳vocal','听过我唱歌吗'], mood:'自信' },
+  '黄鹂':   { emoji:'🐦', phrases:['春天在哪～里～','啾啾','清脆一声'], mood:'文艺' },
+  '啄木鸟': { emoji:'🐦', phrases:['笃笃笃笃笃','头好痛','树呢？这棵树是我的'], mood:'执着' },
+  '猫头鹰': { emoji:'🦉', phrases:['咕～','熬夜冠军','白天别跟我说话'], mood:'夜猫' },
+  '信天翁': { emoji:'🐦', phrases:['（滑翔中）','飞一天也不累','海在哪'], mood:'自由' },
+  '企鹅':   { emoji:'🐧', phrases:['啪嗒啪嗒','好冷','肚子可以滑冰'], mood:'憨憨' },
+  '火烈鸟': { emoji:'🦩', phrases:['单脚站立中','粉色就是最好看的','虾吃多了'], mood:'优雅' },
+  '孔雀':   { emoji:'🐦', phrases:['开屏！','不开了。','又开屏！'], mood:'纠结' },
+  '天鹅':   { emoji:'🦢', phrases:['（优雅划水）','脖子很长但不炫耀','湖是我的'], mood:'贵妇' },
+  '丹顶鹤': { emoji:'🐦', phrases:['长寿的秘诀是——','站如松','今天又活了一天'], mood:'仙气' },
+  '鸵鸟':   { emoji:'🐦', phrases:['（把头埋进沙子）','我看不见=不存在','跑得快但不想跑'], mood:'逃避' },
+  '鹦鹉':   { emoji:'🦜', phrases:['你好！','再见！','复读机模式'], mood:'话痨' },
+  '夜鹭':   { emoji:'🐦', phrases:['呱！！','呱呱呱！！！','（半夜大叫）','谁在睡觉？吵醒你！'], mood:'扰民' },
+  '白鹭':   { emoji:'🐦', phrases:['（单脚站立）','水面倒影真美','优雅，永不过时'], mood:'文艺' },
+  '杜鹃':   { emoji:'🐦', phrases:['布谷布谷','蛋放别人窝里了','不用带娃真开心'], mood:'偷懒' },
+  '布谷':   { emoji:'🐦', phrases:['布谷！布谷！','准时准点','你该干活了'], mood:'闹钟' },
+  '金丝雀': { emoji:'🐦', phrases:['啁啾～','笼子？不存在的','金色传说'], mood:'贵气' },
+  '文鸟':   { emoji:'🐦', phrases:['啾啾','乖巧.jpg','安静吃米'], mood:'乖巧' },
+  '绣眼':   { emoji:'🐦', phrases:['白眼圈最潮','今天吃花蜜了吗','啾啾啾'], mood:'时尚' },
+  '山雀':   { emoji:'🐦', phrases:['啾！','倒挂树枝中','头朝下看世界'], mood:'调皮' },
+  '夜莺':   { emoji:'🐦', phrases:['半夜独唱会','♪～','只有月亮在听'], mood:'深情' },
+  '隼':     { emoji:'🦅', phrases:['咻——','今天捕到猎物了','速降！'], mood:'冷酷' },
+  '鸽':     { emoji:'🕊️', phrases:['咕咕咕','和平','……咕？'], mood:'佛系' },
+  '鹭鸶':   { emoji:'🐦', phrases:['（一动不动）','在等鱼','腿长任性'], mood:'耐心' },
+  '鹩哥':   { emoji:'🐦', phrases:['你好！','吃饭了吗？','哥会说话'], mood:'自来熟' },
+  '伯劳':   { emoji:'🐦', phrases:['别看小，我是猛禽','串串储备粮','树枝是我的冰箱'], mood:'凶萌' },
+  '戴胜':   { emoji:'🐦', phrases:['扇子头最靓','臭？那是防御机制','啄啄啄'], mood:'独特' },
+  '太阳鸟': { emoji:'🐦', phrases:['吸花蜜中～','闪闪发光','太阳出来我上班'], mood:'灿烂' },
+  '鹡鸰':   { emoji:'🐦', phrases:['尾巴一翘一翘','水边散步','哒哒哒'], mood:'悠闲' },
+  '柳莺':   { emoji:'🐦', phrases:['柳树里最会藏','绿叶是我的掩护','叽～'], mood:'隐秘' },
+  '燕鸥':   { emoji:'🐦', phrases:['俯冲！','抓到鱼啦','海面我最帅'], mood:'酷' },
+  '犀鸟':   { emoji:'🐦', phrases:['嘴大但温柔','咚！咚！','森林鼓手'], mood:'稳重' },
+  '椋鸟':   { emoji:'🐦', phrases:['成千上万一起飞','队形变换！','你看得清我吗'], mood:'合群' },
+};
+
+const BIRD_EMOJIS = {
+  default: ['🐦','🐤','🐧','🦅','🦉','🦆','🦢','🦩','🦜','🕊️','🐓','🐔','🐣','🪿','🪽'],
+  owl: '🦉', penguin: '🐧', eagle: '🦅', swan: '🦢', flamingo: '🦩', parrot: '🦜',
+  dove: '🕊️', duck: '🦆', chick: '🐤', bird: '🐦', hatching: '🐣',
+};
+
+const TIER_CONFIG = {
+  earth:    { name: '地球轨道', icon: '🌍', emoji: '🛰️', color: 'var(--tier-earth)',    birdEmoji: '🐤', rank: 1, madam: '门在那边。' },
+  moon:     { name: '月球基地', icon: '🌙', emoji: '🌙', color: 'var(--tier-moon)',     birdEmoji: '🐦', rank: 2, madam: '还行。' },
+  mars:     { name: '火星前哨', icon: '🪐', emoji: '🔴', color: 'var(--tier-mars)',     birdEmoji: '🕊️', rank: 3, madam: '可以。' },
+  asteroid: { name: '小行星带', icon: '💫', emoji: '🪨', color: 'var(--tier-asteroid)', birdEmoji: '✨🐦', rank: 4, madam: '叻女。' },
+  jupiter:  { name: '木星站',   icon: '⭐', emoji: '🟠', color: 'var(--tier-jupiter)',  birdEmoji: '🌈🐦', rank: 5, madam: '不错。继续保持。' },
+  deep:     { name: '深空探索', icon: '🚀', emoji: '🌌', color: 'var(--tier-deep)',    birdEmoji: '⭐🐦', rank: 6, madam: '你比你想的能撑。' },
+};
+
+const MADAM_QUOTES = {
+  morning_unfinished: ['门。', '先做再想。', '别看了，去做。'],
+  afternoon_slow: ['还有时间。但不多。', '进度条不会自己动。'],
+  evening_urgent: ['澡堂快关门了。', '你欠自己不欠我。'],
+  midnight: ['门。去刷牙。再不刷没牙了。', '凌晨了。你答应过自己什么。'],
+  task_done_early: ['可以。', '开张了。继续。'],
+  task_done_late: ['总算。', '比不做好。'],
+  rank_up: ['叻女。', '飞高了一点。'],
+  rank_down: ['掉了。明天抢回来。', '降级不是失败。空白纸也是数据。'],
+  streak_7: ['连续七天。你是真的在撑。', '一个星期。不容易。'],
+  streak_break: ['弦断了。重接就是。', '不是从零开始——是从经验开始。'],
+  settlement_promote: ['晋级了。门开大了一点。', '新轨道。继续飞。'],
+  settlement_demote: ['降级了。还在飞就行。', '轨道低一点而已。重新爬。'],
+};
+
+const DEFAULT_TASKS = [
+  { id: 't1', text: '喝6杯水', enabled: true, category: 'survival', createdAt: Date.now() },
+  { id: 't2', text: '按时吃2顿饭', enabled: true, category: 'survival', createdAt: Date.now() },
+  { id: 't3', text: '洗澡', enabled: true, category: 'survival', createdAt: Date.now() },
+  { id: 't4', text: '刷2次牙', enabled: true, category: 'survival', createdAt: Date.now() },
+  { id: 't5', text: '不憋尿', enabled: true, category: 'survival', createdAt: Date.now() },
+  { id: 't6', text: '00:30前睡觉', enabled: true, category: 'survival', createdAt: Date.now() },
+  { id: 't7', text: '阅读30分钟', enabled: true, category: 'reading', createdAt: Date.now() },
+];
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILS
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function hashStr(s) {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) { hash = ((hash << 5) - hash) + s.charCodeAt(i); hash |= 0; }
+  return Math.abs(hash);
+}
+
+function seededRandom(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) | 0;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+function pickSeeded(arr, rng) { return arr[Math.floor(rng() * arr.length)]; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randBetween(rng, min, max) { return min + rng() * (max - min); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function uid() { return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function blankState() {
+  return {
+    version: 1,
+    user: {
+      tasks: DEFAULT_TASKS.map(t => ({...t})),
+      todayCompletions: {},  // { taskId: timestamp }
+      history: [],            // [{ date, completedCount, totalCount }]
+      streak: 0,
+      longestStreak: 0,
+      tier: 'earth',
+      tierHistory: [],        // [{ tier, date, finalRank }]
+      points: 0,
+      badges: [],
+      birdName: '小灰团',
+      lastActiveDate: null,
+    },
+    books: [],
+    birdAvatars: {},
+    league: {
+      tier: 'earth',
+      users: [],              // 100 birds, regenerated on settlement
+      lastUpdate: null,       // timestamp of last ranking update
+      daySeed: todayStr(),
+      settlementDone: false,
+    },
+    settings: {
+      resetHour: 23,
+    },
+  };
+}
+
+let S = blankState();
+
+function load() {
+  try {
+    const raw = localStorage.getItem('survival-tracker');
+    if (raw) {
+      const data = JSON.parse(raw);
+      S = Object.assign(blankState(), data);
+      // Ensure deep merge for nested objects
+      S.user = Object.assign(blankState().user, data.user || {});
+      S.league = Object.assign(blankState().league, data.league || {});
+      S.settings = Object.assign(blankState().settings, data.settings || {});
+      S.books = data.books || [];
+      S.birdAvatars = data.birdAvatars || {};
+      S.user.tasks = (data.user && data.user.tasks) ? data.user.tasks : DEFAULT_TASKS.map(t=>({...t}));
+      S.user.todayCompletions = (data.user && data.user.todayCompletions) || {};
+      S.user.history = (data.user && data.user.history) || [];
+      S.user.tierHistory = (data.user && data.user.tierHistory) || [];
+      S.user.badges = (data.user && data.user.badges) || [];
+      S.league.users = S.league.users || [];
+      S.league.daySeed = S.league.daySeed || todayStr();
+      S.league.settlementDone = S.league.settlementDone || false;
+    }
+  } catch(e) { console.warn('Load failed:', e); }
+}
+
+function save() {
+  try { localStorage.setItem('survival-tracker', JSON.stringify(S)); } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DATE / STREAK LOGIC
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function checkDayRollover() {
+  const today = todayStr();
+  if (S.user.lastActiveDate && S.user.lastActiveDate !== today) {
+    // Archive yesterday's data
+    const yesterday = S.user.lastActiveDate;
+    const tasks = S.user.tasks.filter(t => t.enabled);
+    const completed = tasks.filter(t => S.user.todayCompletions[t.id]).length;
+    const total = tasks.length;
+
+    // Only record if there were tasks
+    if (total > 0) {
+      // Check if yesterday was a "complete" day (all tasks done)
+      const allDone = completed >= total;
+      if (allDone) {
+        S.user.streak++;
+        if (S.user.streak > S.user.longestStreak) S.user.longestStreak = S.user.streak;
+      } else {
+        S.user.streak = 0;
+      }
+
+      S.user.history.push({
+        date: yesterday,
+        completedCount: completed,
+        totalCount: total,
+      });
+    }
+
+    // Reset today's completions
+    S.user.todayCompletions = {};
+    S.user.lastActiveDate = today;
+
+    // Reset settlement flag for new day
+    S.league.settlementDone = false;
+    S.league.daySeed = today;
+  }
+  if (!S.user.lastActiveDate) {
+    S.user.lastActiveDate = today;
+  }
+
+  // Check if streak needs to be broken (missed a day)
+  if (S.user.lastActiveDate !== today) {
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth()+1).padStart(2,'0')}-${String(yesterdayDate.getDate()).padStart(2,'0')}`;
+    if (S.user.lastActiveDate !== yesterdayStr && S.user.lastActiveDate !== today) {
+      S.user.streak = 0;
+    }
+    S.user.lastActiveDate = today;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AI BIRD GENERATOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function generateBirdLeague(tier, dateStr) {
+  const seed = hashStr(dateStr + '_' + tier + '_v1');
+  const rng = seededRandom(seed);
+  const birds = [];
+  const usedSpecies = [];
+
+  for (let i = 0; i < 100; i++) {
+    let speciesIdx = Math.floor(rng() * BIRD_SPECIES.length);
+    // Avoid too many duplicates
+    if (usedSpecies.includes(BIRD_SPECIES[speciesIdx]) && usedSpecies.length < BIRD_SPECIES.length) {
+      let tries = 0;
+      while (usedSpecies.includes(BIRD_SPECIES[speciesIdx]) && tries < 50) {
+        speciesIdx = Math.floor(rng() * BIRD_SPECIES.length);
+        tries++;
+      }
+    }
+    const species = BIRD_SPECIES[speciesIdx];
+    usedSpecies.push(species);
+    const chatter = BIRD_CHATTER[species] || { emoji: '🐦', phrases: ['...'], mood: '普通' };
+
+    const timePatterns = ['dawn','morning','afternoon','dusk','night'];
+    birds.push({
+      id: 'bird_' + i,
+      name: species,
+      birdEmoji: chatter.emoji,
+      chatter: chatter,
+      behavior: {
+        baseCR: randBetween(rng, 0.35, 0.92),
+        consistency: randBetween(rng, 0.05, 0.25),
+        streakBase: Math.floor(randBetween(rng, 0, 25)),
+        timePattern: timePatterns[Math.floor(rng() * timePatterns.length)],
+        trend: randBetween(rng, -0.015, 0.015),
+      },
+      branchScore: 0,
+    });
+  }
+  return birds;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HIDDEN SCORE CALCULATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// Get current checkpoint progress for a bird
+function getCheckpointProgress(behavior, now) {
+  const hour = now.getHours();
+  let progressFraction;
+
+  switch (behavior.timePattern) {
+    case 'dawn':
+      if (hour < 4) progressFraction = 0;
+      else if (hour < 8) progressFraction = (hour - 4) / 4 * 0.7;
+      else if (hour < 12) progressFraction = 0.7 + (hour - 8) / 4 * 0.2;
+      else progressFraction = 0.9 + (hour - 12) / 12 * 0.1;
+      break;
+    case 'morning':
+      if (hour < 6) progressFraction = 0;
+      else if (hour < 10) progressFraction = (hour - 6) / 4 * 0.75;
+      else if (hour < 14) progressFraction = 0.75 + (hour - 10) / 4 * 0.2;
+      else progressFraction = 0.95 + (hour - 14) / 10 * 0.05;
+      break;
+    case 'afternoon':
+      if (hour < 10) progressFraction = hour / 10 * 0.1;
+      else if (hour < 14) progressFraction = 0.1 + (hour - 10) / 4 * 0.4;
+      else if (hour < 18) progressFraction = 0.5 + (hour - 14) / 4 * 0.4;
+      else progressFraction = 0.9 + (hour - 18) / 6 * 0.1;
+      break;
+    case 'dusk':
+      if (hour < 12) progressFraction = hour / 12 * 0.1;
+      else if (hour < 16) progressFraction = 0.1 + (hour - 12) / 4 * 0.3;
+      else if (hour < 20) progressFraction = 0.4 + (hour - 16) / 4 * 0.4;
+      else if (hour < 23) progressFraction = 0.8 + (hour - 20) / 3 * 0.15;
+      else progressFraction = 0.95;
+      break;
+    case 'night':
+      if (hour < 16) progressFraction = hour / 16 * 0.05;
+      else if (hour < 20) progressFraction = 0.05 + (hour - 16) / 4 * 0.2;
+      else if (hour < 23) progressFraction = 0.25 + (hour - 20) / 3 * 0.45;
+      else progressFraction = 0.7 + (hour - 23) / 1 * 0.3;
+      break;
+    default:
+      progressFraction = hour / 24;
+  }
+
+  // Add randomness from consistency
+  const noise = (Math.sin(hashStr(behavior.timePattern + todayStr()) % 1000) * 0.1) * behavior.consistency * 2;
+  return clamp(progressFraction + noise - behavior.consistency, 0, 1);
+}
+
+function calcBirdScore(bird, now) {
+  const progress = getCheckpointProgress(bird.behavior, now);
+  const adjustedCR = clamp(bird.behavior.baseCR * progress, 0, 1);
+  const completionScore = adjustedCR * 100;
+
+  // Streak: use streakBase + trend * days since epoch
+  const daysSinceEpoch = Math.floor(Date.now() / 86400000);
+  const trendEffect = bird.behavior.trend * daysSinceEpoch;
+  const streakDays = clamp(bird.behavior.streakBase + trendEffect, 0, 30);
+  const streakScore = Math.min(streakDays / 30, 1) * 100;
+
+  // Time score
+  const patternHours = { dawn: 8, morning: 10, afternoon: 15, dusk: 20, night: 23 };
+  const avgHour = patternHours[bird.behavior.timePattern] || 15;
+  let timeScore = avgHour < 12 ? 100 : avgHour < 18 ? 75 : avgHour < 23 ? 50 : 25;
+
+  return Math.round((completionScore * 0.3 + streakScore * 0.5 + timeScore * 0.2) * 10) / 10;
+}
+
+function calcUserScore() {
+  const tasks = S.user.tasks.filter(t => t.enabled);
+  if (tasks.length === 0) return 0;
+  const completions = S.user.todayCompletions;
+  const completedTasks = tasks.filter(t => completions[t.id]);
+  const completionRate = completedTasks.length / tasks.length;
+  const completionScore = completionRate * 100;
+
+  const streakScore = Math.min(S.user.streak / 30, 1) * 100;
+
+  let timeScore = 0;
+  if (completedTasks.length > 0) {
+    const times = completedTasks.map(t => {
+      const ts = completions[t.id];
+      const d = new Date(ts);
+      return d.getHours() + d.getMinutes() / 60;
+    });
+    const avgTime = times.reduce((a,b) => a+b, 0) / times.length;
+    timeScore = avgTime < 12 ? 100 : avgTime < 18 ? 75 : avgTime < 23 ? 50 : 25;
+  }
+
+  return Math.round((completionScore * 0.3 + streakScore * 0.5 + timeScore * 0.2) * 10) / 10;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RANKING UPDATE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function updateAllScores() {
+  const now = new Date();
+  const userScore = calcUserScore();
+
+  // Update bird scores
+  S.league.users.forEach(bird => {
+    bird.branchScore = calcBirdScore(bird, now);
+  });
+
+  // Create combined ranking
+  const allEntries = [
+    ...S.league.users.map(b => ({ id: b.id, name: b.name, score: b.branchScore, birdEmoji: b.birdEmoji, chatter: b.chatter, isUser: false })),
+    { id: 'user', name: S.user.birdName, score: userScore, birdEmoji: getBirdEmoji(), chatter: null, isUser: true },
+  ];
+  allEntries.sort((a, b) => b.score - a.score);
+
+  // Find user rank
+  const userRank = allEntries.findIndex(e => e.isUser) + 1;
+
+  S.league.lastUpdate = Date.now();
+  return { entries: allEntries, userRank, userScore };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SETTLEMENT
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function checkSettlement() {
+  const now = new Date();
+  const resetHour = S.settings.resetHour;
+  // Settlement fires at resetHour, but we check if current hour >= resetHour
+  // and settlement hasn't been done yet today
+  const today = todayStr();
+
+  if (S.league.settlementDone) return null;
+  if (S.league.daySeed === today && S.league.lastUpdate) return null; // Already checked today
+
+  // Check if it's past settlement time
+  const nowHour = now.getHours();
+  if (nowHour < resetHour) return null; // Not time yet
+
+  // Also check: if it's a brand new day, we should do settlement for yesterday
+  // Actually, let's just check: if we haven't settled today and it's past resetHour
+  // OR if it's a new day and we need to settle yesterday
+
+  // Simpler: if daySeed has changed (new day) and settlement wasn't done
+  const leagueDay = S.league.daySeed;
+  if (leagueDay === today && S.league.lastUpdate) return null;
+  if (leagueDay === today && !S.league.lastUpdate) {
+    // First load today, need to ensure league exists
+    return null;
+  }
+
+  // If it's a new day, settle yesterday's results
+  if (leagueDay !== today && nowHour >= resetHour) {
+    return doSettlement(leagueDay);
+  }
+
+  return null;
+}
+
+function doSettlement(forDate) {
+  const { userRank } = updateAllScores();
+
+  let newTier = S.user.tier;
+  let result;
+
+  if (userRank <= 10) {
+    result = 'promote';
+    const tiers = Object.keys(TIER_CONFIG);
+    const idx = tiers.indexOf(S.user.tier);
+    if (idx < tiers.length - 1) newTier = tiers[idx + 1];
+  } else if (userRank <= 70) {
+    result = 'stay';
+  } else {
+    result = 'demote';
+    const tiers = Object.keys(TIER_CONFIG);
+    const idx = tiers.indexOf(S.user.tier);
+    if (idx > 0) newTier = tiers[idx - 1];
+  }
+
+  const oldTier = S.user.tier;
+  S.user.tier = newTier;
+  S.user.tierHistory.push({ tier: newTier, date: forDate, finalRank: userRank, result });
+
+  // Generate new league for new tier
+  const today = todayStr();
+  S.league.tier = newTier;
+  S.league.users = generateBirdLeague(newTier, today);
+  S.league.daySeed = today;
+  S.league.settlementDone = true;
+  S.league.lastUpdate = Date.now();
+
+  // Check badges
+  checkBadges();
+
+  save();
+  return { result, oldTier, newTier, userRank };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BADGES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function checkBadges() {
+  const badges = S.user.badges;
+  const grants = [];
+
+  const addBadge = (id, name, emoji) => {
+    if (!badges.find(b => b.id === id)) {
+      badges.push({ id, name, emoji, earnedAt: todayStr() });
+      grants.push({ name, emoji });
+    }
+  };
+
+  if (S.user.longestStreak >= 3) addBadge('streak3', '连续3天', '🔥');
+  if (S.user.longestStreak >= 7) addBadge('streak7', '连续7天', '⭐');
+  if (S.user.longestStreak >= 14) addBadge('streak14', '连续14天', '🌟');
+  if (S.user.longestStreak >= 30) addBadge('streak30', '连续30天', '💫');
+
+  const tierRank = TIER_CONFIG[S.user.tier]?.rank || 1;
+  if (tierRank >= 2) addBadge('tier2', '抵达月球', '🌙');
+  if (tierRank >= 3) addBadge('tier3', '登陆火星', '🪐');
+  if (tierRank >= 4) addBadge('tier4', '穿越小行星带', '💫');
+  if (tierRank >= 5) addBadge('tier5', '抵达木星', '⭐');
+  if (tierRank >= 6) addBadge('tier6', '深空探索者', '🚀');
+
+  const doneBooks = S.books.filter(b => b.status === 'done').length;
+  if (doneBooks >= 1) addBadge('book1', '读完第一本书', '📖');
+  if (doneBooks >= 5) addBadge('book5', '读完5本书', '📚');
+  if (doneBooks >= 10) addBadge('book10', '读完10本书', '🏆');
+
+  const totalDone = S.user.history.reduce((s, h) => s + h.completedCount, 0);
+  if (totalDone >= 50) addBadge('tasks50', '完成50个任务', '✅');
+  if (totalDone >= 100) addBadge('tasks100', '完成100个任务', '💯');
+
+  return grants;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BIRD EMOJI BY TIER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function getBirdEmoji() {
+  const cfg = TIER_CONFIG[S.user.tier];
+  return cfg ? cfg.birdEmoji : '🐤';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MADAM QUOTES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function getMadamQuote() {
+  const now = new Date();
+  const hour = now.getHours();
+  const tasks = S.user.tasks.filter(t => t.enabled);
+  const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
+  const allDone = done >= tasks.length && tasks.length > 0;
+
+  if (allDone && hour < 22) return pick(MADAM_QUOTES.task_done_early, {});
+  if (allDone && hour >= 22) return pick(MADAM_QUOTES.task_done_late, {});
+  if (done === 0 && hour >= 23) return pick(MADAM_QUOTES.midnight, {});
+  if (done === 0 && hour >= 18) return pick(MADAM_QUOTES.evening_urgent, {});
+  if (done === 0 && hour >= 10) return pick(MADAM_QUOTES.afternoon_slow, {});
+  if (done === 0) return pick(MADAM_QUOTES.morning_unfinished, {});
+
+  if (S.user.streak >= 7) return pick(MADAM_QUOTES.streak_7, {});
+  if (S.user.streak === 0 && S.user.longestStreak > 2) return pick(MADAM_QUOTES.streak_break, {});
+
+  // Default based on tier
+  const cfg = TIER_CONFIG[S.user.tier];
+  return cfg ? cfg.madam : '门在那边。';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER: Today Screen
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderToday() {
+  const tasks = S.user.tasks.filter(t => t.enabled);
+  const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
+  const { entries, userRank, userScore } = updateAllScores();
+
+  // Bird avatar (image or emoji)
+  const avatarEl = document.getElementById('bird-avatar');
+  if (S.user.birdAvatar) {
+    avatarEl.innerHTML = `<img src="${S.user.birdAvatar}" alt="bird">`;
+  } else {
+    avatarEl.innerHTML = '';
+    avatarEl.textContent = getBirdEmoji();
+  }
+  document.getElementById('bird-name-display').textContent = S.user.birdName;
+  const cfg = TIER_CONFIG[S.user.tier];
+  document.getElementById('bird-tier-display').textContent = `${cfg.icon} ${cfg.name}`;
+
+  // Status
+  document.getElementById('status-rank').textContent = '#' + userRank;
+  document.getElementById('status-score').textContent = String(userScore);
+  document.getElementById('status-streak').textContent = String(S.user.streak);
+
+  // Madam
+  document.getElementById('madam-quote').textContent = getMadamQuote();
+
+  // Tasks
+  document.getElementById('task-progress').textContent = `${done}/${tasks.length}`;
+  const taskList = document.getElementById('task-list');
+  taskList.innerHTML = tasks.map(t => {
+    const completed = !!S.user.todayCompletions[t.id];
+    const ts = S.user.todayCompletions[t.id];
+    const timeStr = ts ? new Date(ts).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) : '';
+    const catClass = t.category === 'reading' ? 'reading' : 'survival';
+    const catLabel = t.category === 'reading' ? '读' : '生';
+    return `
+      <div class="task-item ${completed ? 'done' : ''}" onclick="toggleTask('${t.id}')">
+        <div class="task-check">✓</div>
+        <span class="task-text">${escHtml(t.text)}</span>
+        <span class="task-cat ${catClass}">${catLabel}</span>
+        ${timeStr ? `<span class="task-time">${timeStr}</span>` : ''}
+      </div>`;
+  }).join('');
+
+  // Rankings
+  const nextUpdate = getNextUpdateText();
+  document.getElementById('rank-update-text').textContent = '下次更新: ' + nextUpdate;
+
+  const rankList = document.getElementById('rank-list');
+  // Show top 10 + user's vicinity
+  const showEntries = [];
+  const top10 = entries.slice(0, 10);
+  showEntries.push(...top10);
+
+  if (userRank > 10) {
+    if (userRank > 12) {
+      showEntries.push({ separator: true, text: '...' });
+    }
+    // User's neighbors
+    const start = Math.max(10, userRank - 3);
+    const end = Math.min(100, userRank + 2);
+    entries.slice(start, end).forEach(e => showEntries.push(e));
+  }
+
+  rankList.innerHTML = showEntries.map(e => {
+    if (e.separator) return '<div style="text-align:center;color:var(--muted);padding:6px;">···</div>';
+    const rank = entries.indexOf(e) + 1;
+    const isUser = e.isUser;
+    // Get a random chatter phrase for this bird
+    let chatterHtml = '';
+    if (!isUser && e.chatter) {
+      const phrase = e.chatter.phrases[Math.floor(hashStr(e.id + todayStr()) % e.chatter.phrases.length)];
+      chatterHtml = `<span class="bird-chatter" data-bird-id="${escHtml(e.id)}">"${escHtml(phrase)}"</span>`;
+    }
+    // Bird avatar: custom image or emoji
+    let birdAvatarHtml;
+    const customImg = S.birdAvatars?.[e.name];
+    if (customImg) {
+      birdAvatarHtml = `<span class="rank-bird rank-bird-img" style="background-image:url(${customImg})" onclick="event.stopPropagation();uploadBirdAvatar('${escHtml(e.name)}')" title="点我换头像"></span>`;
+    } else {
+      birdAvatarHtml = `<span class="rank-bird" onclick="event.stopPropagation();uploadBirdAvatar('${escHtml(e.name)}')" title="点我换头像">${e.birdEmoji || '🐦'}</span>`;
+    }
+
+    return `
+      <div class="rank-item ${isUser ? 'me' : ''}"
+           ${!isUser ? `onclick="birdChatClick('${escHtml(e.id)}','${escHtml(e.name)}','${escHtml(e.chatter?.mood || '')}',${rank},${userRank})" title="点我让AI吐槽"` : ''}>
+        <span class="rank-num">#${rank}</span>
+        ${birdAvatarHtml}
+        <div class="rank-info">
+          <span class="rank-name">${escHtml(e.name)}${isUser ? ' (你)' : ''}</span>
+          ${chatterHtml}
+        </div>
+        <span class="rank-score">${e.score.toFixed(1)}</span>
+      </div>`;
+  }).join('');
+
+  // Save updated scores
+  save();
+}
+
+function getNextUpdateText() {
+  const now = new Date();
+  const hour = now.getHours();
+  const checkpoints = [0, 6, 12, 18];
+  let next = checkpoints.find(h => h > hour);
+  if (next === undefined) next = 24;
+  const mins = (next - hour - 1) * 60 + (60 - now.getMinutes());
+  const hLeft = Math.floor(mins / 60);
+  const mLeft = mins % 60;
+  if (hLeft > 0) return `${hLeft}h ${mLeft}m`;
+  return `${mLeft}m`;
+}
+
+function toggleTask(taskId) {
+  if (S.user.todayCompletions[taskId]) {
+    delete S.user.todayCompletions[taskId];
+  } else {
+    S.user.todayCompletions[taskId] = Date.now();
+  }
+
+  // Bounce bird
+  const bird = document.getElementById('bird-avatar');
+  bird.classList.remove('bounce');
+  void bird.offsetWidth;
+  bird.classList.add('bounce');
+
+  save();
+  renderToday();
+
+  // Toast on first completion of the day
+  const done = S.user.tasks.filter(t => t.enabled && S.user.todayCompletions[t.id]).length;
+  if (done === 1) toast('✓ 开张了。继续。', 'info');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER: Stats Screen
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderStats() {
+  document.getElementById('stat-longest').textContent = S.user.longestStreak;
+  document.getElementById('stat-total-done').textContent = S.user.history.reduce((s, h) => s + h.completedCount, 0);
+  document.getElementById('stat-books').textContent = S.books.filter(b => b.status === 'done').length;
+
+  renderHeatmap();
+  renderTierHistory();
+  renderBadges();
+}
+
+function renderHeatmap() {
+  const wrap = document.getElementById('heatmap-wrap');
+  const weeks = 26; // Show ~6 months
+  const now = new Date();
+  const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - (weeks * 7 - 1));
+
+  // Build a map of date->completion rate
+  const historyMap = {};
+  S.user.history.forEach(h => {
+    historyMap[h.date] = h.totalCount > 0 ? h.completedCount / h.totalCount : 0;
+  });
+
+  // Build week columns
+  const days = [];
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    days.push({ date: ds, dayOfWeek: d.getDay(), rate: historyMap[ds] ?? null });
+  }
+
+  // Group by weeks
+  const weekCols = [];
+  let currentWeek = [];
+  days.forEach(day => {
+    currentWeek.push(day);
+    if (day.dayOfWeek === 6 || day === days[days.length - 1]) {
+      weekCols.push([...currentWeek]);
+      currentWeek = [];
+    }
+  });
+
+  // Pad first week with nulls at the beginning
+  const firstWeek = weekCols[0];
+  if (firstWeek) {
+    const firstDow = firstWeek[0].dayOfWeek;
+    for (let i = 0; i < firstDow; i++) {
+      firstWeek.unshift(null);
+    }
+  }
+
+  const dowLabels = ['日','一','二','三','四','五','六'];
+
+  // Render
+  const rows = [];
+  for (let dow = 0; dow < 7; dow++) {
+    let cells = '';
+    weekCols.forEach(week => {
+      const day = week[dow];
+      if (!day) { cells += '<span class="hm-cell hm-empty" style="visibility:hidden;"></span>'; return; }
+      if (day.rate === null || day.rate === undefined) {
+        cells += '<span class="hm-cell hm-empty"></span>';
+        return;
+      }
+      let cls = 'hm-empty';
+      if (day.rate >= 0.75) cls = 'l4';
+      else if (day.rate >= 0.5) cls = 'l3';
+      else if (day.rate >= 0.25) cls = 'l2';
+      else if (day.rate > 0) cls = 'l1';
+      cells += `<span class="hm-cell ${cls}" title="${day.date}: ${Math.round(day.rate*100)}%"></span>`;
+    });
+    rows.push(`<div class="hm-row"><span class="hm-dow">${dowLabels[dow]}</span>${cells}</div>`);
+  }
+
+  wrap.innerHTML = rows.join('');
+}
+
+function renderTierHistory() {
+  const el = document.getElementById('tier-history');
+  const history = S.user.tierHistory.slice(-10).reverse();
+  if (history.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--muted);">尚无等级记录。完成每日任务，结算后会出现。</div>';
+    return;
+  }
+  el.innerHTML = history.map(h => {
+    const cfg = TIER_CONFIG[h.tier];
+    const resultEmoji = h.result === 'promote' ? '⬆️' : h.result === 'demote' ? '⬇️' : '➡️';
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;border-bottom:1px solid var(--sep);">
+        <span>${resultEmoji}</span>
+        <span class="tier-badge ${h.tier}">${cfg.icon} ${cfg.name}</span>
+        <span style="color:var(--muted);flex:1;">${h.date}</span>
+        <span style="font-weight:600;">#${h.finalRank}</span>
+      </div>`;
+  }).join('');
+}
+
+function renderBadges() {
+  const el = document.getElementById('badges-list');
+  if (S.user.badges.length === 0) {
+    el.innerHTML = '<span style="font-size:13px;color:var(--muted);">还没有徽章。坚持做任务就会解锁！</span>';
+    return;
+  }
+  el.innerHTML = S.user.badges.map(b =>
+    `<span style="font-size:13px;padding:6px 10px;background:var(--bg-card);border-radius:10px;display:flex;align-items:center;gap:5px;" title="${b.earnedAt}">${b.emoji} ${b.name}</span>`
+  ).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER: Books Screen
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderBooks() {
+  const reading = S.books.filter(b => b.status === 'reading');
+  const unread = S.books.filter(b => b.status === 'unread');
+  const done = S.books.filter(b => b.status === 'done');
+
+  document.getElementById('books-summary').textContent =
+    `${reading.length}本在读, ${unread.length}本待读, ${done.length}本已读完`;
+
+  document.getElementById('books-reading').innerHTML = reading.length === 0
+    ? '<div style="font-size:13px;color:var(--muted);padding:8px 0;">还没有正在读的书。</div>'
+    : reading.map(b => bookCard(b)).join('');
+
+  document.getElementById('books-unread').innerHTML = unread.length === 0
+    ? '<div style="font-size:13px;color:var(--muted);padding:8px 0;">书架空空。买书不看的毛病该治了。</div>'
+    : unread.map(b => bookCard(b, true)).join('');
+
+  document.getElementById('books-done').innerHTML = done.length === 0
+    ? '<div style="font-size:13px;color:var(--muted);padding:8px 0;">还没有读完的书。加油。</div>'
+    : done.map(b => bookCard(b)).join('');
+}
+
+function bookCard(book, compact) {
+  const progress = book.totalPages > 0 ? Math.round(book.currentPage / book.totalPages * 100) : 0;
+  const spineColors = ['#e0556a','#e8983e','#f0b45a','#5ec49e','#6b9fff','#a06bff','#e060a0','#60c0c0'];
+  const spineColor = spineColors[hashStr(book.id || book.title) % spineColors.length];
+
+  if (compact && book.status === 'unread') {
+    return `
+      <div class="book-card" onclick="showEditBookModal('${book.id}')">
+        <div class="book-spine" style="background:${spineColor};"></div>
+        <div class="book-header">
+          <span class="book-bird">📖</span>
+          <span class="book-title">${escHtml(book.title)}</span>
+          <span class="book-status ${book.status}">待读</span>
+        </div>
+        ${book.author ? `<div class="book-author">${escHtml(book.author)} · ${book.totalPages}页</div>` : ''}
+      </div>`;
+  }
+
+  return `
+    <div class="book-card ${book.status}" onclick="showEditBookModal('${book.id}')">
+      <div class="book-spine" style="background:${spineColor};"></div>
+      <div class="book-header">
+        <span class="book-bird">${book.status === 'reading' ? getBirdEmoji() : book.status === 'done' ? '✅' : '📖'}</span>
+        <span class="book-title">${escHtml(book.title)}</span>
+        <span class="book-status ${book.status}">${book.status === 'reading' ? '在读' : book.status === 'done' ? '已读完' : '待读'}</span>
+      </div>
+      ${book.author ? `<div class="book-author">${escHtml(book.author)} · ${book.totalPages}页</div>` : ''}
+      ${book.status !== 'unread' ? `
+        <div class="progress-bar"><div class="progress-fill" style="width:${progress}%;"></div></div>
+        <div class="book-progress-text">第${book.currentPage}/${book.totalPages}页 (${progress}%)</div>
+      ` : ''}
+    </div>`;
+}
+
+let editingBookId = null;
+
+function showAddBookModal() {
+  document.getElementById('add-book-modal').classList.remove('hidden');
+  document.getElementById('book-title-input').value = '';
+  document.getElementById('book-author-input').value = '';
+  document.getElementById('book-pages-input').value = '';
+  document.getElementById('book-title-input').focus();
+}
+
+function hideAddBookModal() {
+  document.getElementById('add-book-modal').classList.add('hidden');
+}
+
+function addBook() {
+  const title = document.getElementById('book-title-input').value.trim();
+  const author = document.getElementById('book-author-input').value.trim();
+  const pages = parseInt(document.getElementById('book-pages-input').value) || 0;
+
+  if (!title) { toast('请输入书名', 'info'); return; }
+
+  S.books.push({
+    id: uid(),
+    title,
+    author,
+    totalPages: pages,
+    currentPage: 0,
+    status: 'unread',
+    addedAt: todayStr(),
+    doneAt: null,
+  });
+
+  hideAddBookModal();
+  save();
+  renderBooks();
+  toast('📖 书籍已添加', 'info');
+}
+
+function showEditBookModal(bookId) {
+  const book = S.books.find(b => b.id === bookId);
+  if (!book) return;
+  editingBookId = bookId;
+  document.getElementById('edit-book-title').textContent = `《${book.title}》`;
+  document.getElementById('edit-book-page').value = book.currentPage;
+  document.getElementById('edit-book-modal').classList.remove('hidden');
+}
+
+function hideEditBookModal() {
+  document.getElementById('edit-book-modal').classList.add('hidden');
+  editingBookId = null;
+}
+
+function updateBookProgress() {
+  if (!editingBookId) return;
+  const book = S.books.find(b => b.id === editingBookId);
+  if (!book) return;
+
+  const page = parseInt(document.getElementById('edit-book-page').value) || 0;
+  book.currentPage = clamp(page, 0, book.totalPages || page);
+  if (book.currentPage > 0 && book.status === 'unread') book.status = 'reading';
+  if (book.currentPage >= book.totalPages && book.totalPages > 0) {
+    book.status = 'done';
+    book.doneAt = todayStr();
+    checkBadges();
+    toast('🎉 读完了一本书！', 'promo');
+  }
+
+  hideEditBookModal();
+  save();
+  renderBooks();
+}
+
+function markBookDone() {
+  if (!editingBookId) return;
+  const book = S.books.find(b => b.id === editingBookId);
+  if (!book) return;
+  book.status = 'done';
+  book.currentPage = book.totalPages;
+  book.doneAt = todayStr();
+  hideEditBookModal();
+  checkBadges();
+  save();
+  renderBooks();
+  toast('🎉 读完了一本书！', 'promo');
+}
+
+function deleteBook() {
+  if (!editingBookId) return;
+  S.books = S.books.filter(b => b.id !== editingBookId);
+  hideEditBookModal();
+  save();
+  renderBooks();
+  toast('已删除', 'info');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER: Tasks Management
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderTasksMgmt() {
+  const survivalTasks = S.user.tasks.filter(t => t.category === 'survival');
+  const readingTasks = S.user.tasks.filter(t => t.category === 'reading');
+
+  document.getElementById('tasks-survival-edit').innerHTML = survivalTasks.map(t => taskEditRow(t)).join('');
+  document.getElementById('tasks-reading-edit').innerHTML = readingTasks.map(t => taskEditRow(t)).join('');
+}
+
+function taskEditRow(t) {
+  return `
+    <div class="task-edit-row">
+      <span class="task-text-edit" style="${t.enabled ? '' : 'text-decoration:line-through;color:var(--muted);'}">${escHtml(t.text)}</span>
+      <div class="toggle-switch ${t.enabled ? 'on' : ''}" onclick="toggleTaskEnabled('${t.id}')"></div>
+      <button class="text-btn" style="color:var(--red);" onclick="deleteTaskPermanent('${t.id}')">✕</button>
+    </div>`;
+}
+
+function toggleTaskEnabled(taskId) {
+  const task = S.user.tasks.find(t => t.id === taskId);
+  if (task) { task.enabled = !task.enabled; }
+  save();
+  renderTasksMgmt();
+}
+
+function deleteTaskPermanent(taskId) {
+  S.user.tasks = S.user.tasks.filter(t => t.id !== taskId);
+  delete S.user.todayCompletions[taskId];
+  save();
+  renderTasksMgmt();
+  renderToday();
+}
+
+function addTask() {
+  const input = document.getElementById('new-task-input');
+  const cat = document.getElementById('new-task-cat').value;
+  const text = input.value.trim();
+  if (!text) { toast('输入点内容再添加', 'info'); return; }
+  S.user.tasks.push({ id: uid(), text, enabled: true, category: cat, createdAt: Date.now() });
+  input.value = '';
+  save();
+  renderTasksMgmt();
+  renderToday();
+  toast('任务已添加', 'info');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SETTINGS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderSettings() {
+  document.getElementById('set-bird-name').value = S.user.birdName;
+  document.getElementById('set-reset-hour').value = S.settings.resetHour;
+  const apiKeyEl = document.getElementById('set-api-key');
+  if (apiKeyEl) apiKeyEl.value = S.settings.deepseekKey || '';
+  const aiTog = document.getElementById('ai-toggle');
+  if (aiTog) aiTog.classList.toggle('on', S.settings.aiEnabled !== false);
+  // Avatar preview
+  const preview = document.getElementById('avatar-preview');
+  if (preview) {
+    if (S.user.birdAvatar) {
+      preview.innerHTML = `<img src="${S.user.birdAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    } else {
+      preview.innerHTML = '';
+      preview.textContent = getBirdEmoji();
+    }
+  }
+}
+
+function updateBirdName() {
+  const name = document.getElementById('set-bird-name').value.trim();
+  if (name) {
+    S.user.birdName = name;
+    save();
+    renderToday();
+  }
+}
+
+function uploadAvatar(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 200 * 1024) { toast('图片太大了，200KB以内吧', 'info'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    // Resize to small thumbnail
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const size = 120;
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const minDim = Math.min(img.width, img.height);
+      const sx = (img.width - minDim) / 2;
+      const sy = (img.height - minDim) / 2;
+      ctx.fillStyle = '#f3efe7';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+      S.user.birdAvatar = canvas.toDataURL('image/jpeg', 0.7);
+      save();
+      renderToday();
+      renderSettings();
+      toast('🐦 头像更新了！', 'promo');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function removeAvatar() {
+  S.user.birdAvatar = null;
+  save();
+  renderToday();
+  renderSettings();
+  toast('头像已清除', 'info');
+}
+
+// ── AI Bird avatars ──
+let _pendingBirdSpecies = null;
+function uploadBirdAvatar(speciesName) {
+  _pendingBirdSpecies = speciesName;
+  document.getElementById('bird-avatar-upload').click();
+}
+
+function onBirdAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file || !_pendingBirdSpecies) return;
+  if (file.size > 200 * 1024) { toast('图片太大了，200KB以内吧', 'info'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const size = 80;
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const minDim = Math.min(img.width, img.height);
+      const sx = (img.width - minDim) / 2;
+      const sy = (img.height - minDim) / 2;
+      ctx.fillStyle = '#f3efe7';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+      if (!S.birdAvatars) S.birdAvatars = {};
+      S.birdAvatars[_pendingBirdSpecies] = canvas.toDataURL('image/jpeg', 0.7);
+      save();
+      renderToday();
+      toast(`🐦 ${_pendingBirdSpecies} 头像已更新`, 'promo');
+      _pendingBirdSpecies = null;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function updateResetHour() {
+  const val = parseInt(document.getElementById('set-reset-hour').value);
+  if (val >= 0 && val <= 23) {
+    S.settings.resetHour = val;
+    save();
+  }
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `survival-tracker-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('数据已导出', 'info');
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.version && data.user && data.league) {
+        S = data;
+        save();
+        renderAll();
+        toast('数据已导入 ✓', 'promo');
+      } else {
+        toast('文件格式不正确', 'info');
+      }
+    } catch(_) { toast('文件损坏，导入失败', 'info'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetAllData() {
+  if (!confirm('确定要重置所有数据吗？此操作不可撤销。')) return;
+  S = blankState();
+  save();
+  renderAll();
+  toast('数据已重置', 'info');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCREEN NAVIGATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.nav-btn[data-screen="${name}"]`)?.classList.add('active');
+
+  // Lazy render
+  if (name === 'today') renderToday();
+  else if (name === 'stats') renderStats();
+  else if (name === 'books') renderBooks();
+  else if (name === 'tasks-mgmt') renderTasksMgmt();
+  else if (name === 'settings') renderSettings();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function toast(msg, type) {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type || 'info'}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderAll() {
+  renderToday();
+  // Other screens rendered lazily
+}
+
+function applyDayNight() {
+  const hour = new Date().getHours();
+  const isNight = hour >= 18 || hour < 6;
+  document.body.classList.toggle('night', isNight);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = isNight ? '#171d13' : '#f3efe7';
+}
+setInterval(applyDayNight, 60000);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEEPSEEK AI INTEGRATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function getApiKey() { return S.settings.deepseekKey || ''; }
+function aiEnabled() { return S.settings.aiEnabled !== false && !!getApiKey(); }
+
+async function callDeepSeek(messages, maxTokens) {
+  const key = getApiKey();
+  if (!key) throw new Error('未设置API Key');
+  const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages,
+      max_tokens: maxTokens || 120,
+      temperature: 0.9,
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`API error ${resp.status}: ${err.slice(0,100)}`);
+  }
+  const data = await resp.json();
+  return data.choices[0].message.content.trim();
+}
+
+// ── Click bird in ranking → AI roast ──
+async function birdChatClick(birdId, birdName, birdMood, birdRank, userRank) {
+  if (!aiEnabled()) {
+    toast('去设置页填DeepSeek API Key才能触发AI吐槽', 'info');
+    return;
+  }
+  // Show loading on the bird's chatter line
+  const allChatters = document.querySelectorAll('.bird-chatter');
+  allChatters.forEach(el => { if (el.dataset.birdId === birdId) el.textContent = '（在想怎么骂你...）'; });
+
+  try {
+    const roast = await aiBirdRoast(birdName, birdMood, birdRank, userRank);
+    allChatters.forEach(el => { if (el.dataset.birdId === birdId) el.textContent = '"' + roast + '"'; });
+    _aiBirdCache[`${birdName}_${todayStr()}`] = roast;
+  } catch(e) {
+    allChatters.forEach(el => { if (el.dataset.birdId === birdId) el.textContent = '（卡壳了...）'; });
+    toast('AI调用失败：' + e.message, 'info');
+  }
+}
+
+// ── AI Bird Trash Talk: click a bird in ranking → AI generates personalized roast ──
+const _aiBirdCache = {};
+
+async function aiBirdRoast(birdName, birdMood, birdRank, userRank) {
+  const cacheKey = `${birdName}_${todayStr()}`;
+  if (_aiBirdCache[cacheKey]) return _aiBirdCache[cacheKey];
+
+  const tasks = S.user.tasks.filter(t => t.enabled);
+  const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
+  const msg = await callDeepSeek([
+    { role: 'system', content: `你是一只叫"${birdName}"的小鸟，你的性格是${birdMood}。你和其他小鸟一起参加森林生存排名赛。有一个人类也在排名里，她叫"${S.user.birdName}"。请根据"${birdName}"这种鸟的刻板印象和天性，用小鸟视角说一句可爱/有趣/符合鸟设的话。15字以内，要有拟声词（呱、啾、嘎、咕之类的）。温暖有趣为主，不要太刻薄。` },
+    { role: 'user', content: `我今天的任务完成了${done}/${tasks.length}，排名#${userRank}，你这只${birdName}排名#${birdRank}。对我说一句话。` },
+  ], 60);
+  _aiBirdCache[cacheKey] = msg;
+  return msg;
+}
+
+// ── AI Madam Chat ──
+let madamChatHistory = [];
+
+function showMadamChat() {
+  document.getElementById('madam-chat-modal').classList.remove('hidden');
+  document.getElementById('madam-chat-input').focus();
+  if (madamChatHistory.length === 0) {
+    addChatMsg('madam', getMadamQuote());
+  }
+  renderChatHistory();
+}
+
+function hideMadamChat() {
+  document.getElementById('madam-chat-modal').classList.add('hidden');
+}
+
+function addChatMsg(role, text) {
+  madamChatHistory.push({ role, text, time: Date.now() });
+  if (madamChatHistory.length > 40) madamChatHistory.shift();
+  renderChatHistory();
+}
+
+function renderChatHistory() {
+  const el = document.getElementById('madam-chat-msgs');
+  el.innerHTML = madamChatHistory.map(m => `
+    <div class="chat-msg ${m.role}">
+      ${m.role === 'madam' ? '<div class="chat-sender">🐦 Madam</div>' : '<div class="chat-sender">你</div>'}
+      ${escHtml(m.text)}
+    </div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendMadamMsg() {
+  const input = document.getElementById('madam-chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!aiEnabled()) {
+    addChatMsg('madam', 'API Key没设置。去设置页填DeepSeek的key。');
+    input.value = '';
+    return;
+  }
+  input.value = '';
+  addChatMsg('user', text);
+
+  // Build system prompt with Madam persona + user context
+  const tasks = S.user.tasks.filter(t => t.enabled);
+  const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
+  const systemPrompt = `你是Madam——一个铁面无私但暗藏温柔的AI，专门辅助一位19岁ADHD女生。你说话极简，不哄不绕，毒舌但关心她。你的角色是帮她突破执行功能障碍。
+
+当前状态：她叫"${S.user.birdName}"，等级${TIER_CONFIG[S.user.tier].name}，连续${S.user.streak}天完成任务。今天完成了${done}/${tasks.length}项任务。
+
+规则：回复控制在30字以内。可以毒舌，可以踹她一脚，也可以温柔（但不要同时）。不要说"你应该""你为什么不"。
+${text.includes('洗澡') || text.includes('刷牙') || text.includes('门') ? '如果她拖延不行动，直接说"门。"并催促。' : ''}`;
+
+  try {
+    const reply = await callDeepSeek([
+      { role: 'system', content: systemPrompt },
+      ...madamChatHistory.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
+    ], 100);
+    addChatMsg('madam', reply);
+  } catch(e) {
+    addChatMsg('madam', 'API调用失败。检查key或者网络。');
+    console.warn('DeepSeek error:', e);
+  }
+}
+
+// ── Settings ──
+function updateApiKey() {
+  const key = document.getElementById('set-api-key').value.trim();
+  S.settings.deepseekKey = key;
+  save();
+}
+
+function toggleAI() {
+  S.settings.aiEnabled = !(S.settings.aiEnabled !== false);
+  document.getElementById('ai-toggle').classList.toggle('on', S.settings.aiEnabled !== false);
+  save();
+}
+
+function init() {
+  applyDayNight();
+  load();
+  checkDayRollover();
+
+  // Init AI toggle state
+  const aiTog = document.getElementById('ai-toggle');
+  if (aiTog) aiTog.classList.toggle('on', S.settings.aiEnabled !== false);
+
+  // Ensure league exists & has chatter (v1 migration)
+
+  // Ensure league exists & has chatter (v1 migration)
+  const needsRegen = !S.league.users || S.league.users.length === 0
+    || (S.league.users.length > 0 && !S.league.users[0].chatter);
+  if (needsRegen) {
+    S.league.users = generateBirdLeague(S.user.tier, todayStr());
+    S.league.tier = S.user.tier;
+    S.league.daySeed = todayStr();
+    save();
+  }
+
+  // Check if league needs regeneration (new day, past settlement)
+  const settlementResult = checkSettlement();
+  if (settlementResult) {
+    // Show settlement toast
+    const { result, newTier, userRank } = settlementResult;
+    const cfg = TIER_CONFIG[newTier];
+    if (result === 'promote') {
+      toast(`🚀 晋级！${cfg.icon} ${cfg.name} — 排名 #${userRank}`, 'promo');
+    } else if (result === 'demote') {
+      toast(`⬇️ 降级至 ${cfg.icon} ${cfg.name} — 排名 #${userRank}`, 'demo');
+    } else {
+      toast(`➡️ 保持在 ${cfg.icon} ${cfg.name} — 排名 #${userRank}`, 'info');
+    }
+  }
+
+  // Ensure today's league matches user's tier
+  if (S.league.tier !== S.user.tier) {
+    S.league.tier = S.user.tier;
+    S.league.users = generateBirdLeague(S.user.tier, todayStr());
+    S.league.daySeed = todayStr();
+    save();
+  }
+
+  // Check badges on init
+  const newBadges = checkBadges();
+  newBadges.forEach(b => toast(`${b.emoji} 解锁徽章: ${b.name}`, 'promo'));
+
+  renderAll();
+
+  // Setup nav buttons
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => showScreen(btn.dataset.screen));
+  });
+
+  // Bird avatar click = bounce
+  document.getElementById('bird-avatar').addEventListener('click', function() {
+    this.classList.remove('bounce');
+    void this.offsetWidth;
+    this.classList.add('bounce');
+  });
+
+  // Periodic check for settlement
+  setInterval(() => {
+    const result = checkSettlement();
+    if (result) {
+      const cfg = TIER_CONFIG[result.newTier];
+      if (result.result === 'promote') {
+        toast(`🚀 晋级！${cfg.icon} ${cfg.name}`, 'promo');
+      } else if (result.result === 'demote') {
+        toast(`⬇️ 降级至 ${cfg.icon} ${cfg.name}`, 'demo');
+      }
+      renderToday();
+    }
+    // Also update scores periodically
+    renderToday();
+  }, 60000); // Check every minute
+
+  // Hourly rank update (at checkpoint boundaries)
+  checkRankUpdateTimer();
+  setInterval(checkRankUpdateTimer, 60000);
+
+  console.log('🐦 小鸟生存追踪器已就绪');
+  console.log(`   等级: ${TIER_CONFIG[S.user.tier].icon} ${TIER_CONFIG[S.user.tier].name}`);
+  console.log(`   小鸟: ${S.user.birdName} ${getBirdEmoji()}`);
+  console.log(`   连续: ${S.user.streak}天 | 排名: 计算中...`);
+}
+
+function checkRankUpdateTimer() {
+  const now = new Date();
+  const hour = now.getHours();
+  const checkpoints = [0, 6, 12, 18];
+  const currentCp = checkpoints.filter(h => hour >= h).pop() || 0;
+  // If checkpoint has changed since last update, refresh rankings
+  if (!S.league.lastUpdate || (hour % 6 === 0 && now.getMinutes() < 1)) {
+    renderToday();
+  }
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
