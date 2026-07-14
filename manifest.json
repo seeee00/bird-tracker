@@ -1,0 +1,17 @@
+{
+  "name": "小鸟生存追踪",
+  "short_name": "小鸟追踪",
+  "description": "ADHD生存任务追踪 + 小鸟排名对战",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f3efe7",
+  "theme_color": "#5a8a3c",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
