@@ -467,6 +467,30 @@ body.night::before { opacity: 0.85; }
 .chat-msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
 .chat-msg.madam { align-self: flex-start; background: var(--bg-input); color: var(--text); border: 1px solid var(--sep); }
 .chat-msg .chat-sender { font-size: 10px; font-weight: 600; opacity: .7; margin-bottom: 2px; }
+
+/* ── Shop items ── */
+.shop-item {
+  background: var(--bg-card); border-radius: var(--radius-sm); padding: 10px;
+  border: 1px solid var(--sep); cursor: pointer; transition: all .15s;
+  text-align: center;
+}
+.shop-item:active { transform: scale(.96); }
+.shop-item.owned { border-color: var(--green); opacity: .7; }
+.shop-item.equipped { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.shop-item .si-img { font-size: 36px; margin-bottom: 4px; }
+.shop-item .si-img img { width: 48px; height: 48px; object-fit: contain; border-radius: 8px; }
+.shop-item .si-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.shop-item .si-price { font-size: 11px; color: var(--accent); font-weight: 500; margin-top: 2px; }
+.shop-item .si-owned { font-size: 10px; color: var(--green); margin-top: 2px; }
+
+.inv-item {
+  width: 44px; height: 44px; border-radius: var(--radius-xs);
+  background: var(--bg-card); border: 2px solid var(--sep);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; cursor: pointer; transition: all .15s;
+}
+.inv-item.equipped { border-color: var(--accent); box-shadow: 0 0 6px var(--glow); }
+.inv-item img { width: 32px; height: 32px; object-fit: contain; border-radius: 4px; }
 </style>
 </head>
 <body>
@@ -480,7 +504,10 @@ body.night::before { opacity: 0.85; }
        ════════════════════════════════════════════════════ -->
   <div class="screen active" id="screen-today">
     <div class="bird-header">
-      <span id="bird-avatar">🐤</span>
+      <div style="position:relative;display:inline-block;">
+        <span id="bird-avatar">🐤</span>
+        <span id="bird-decoration" style="position:absolute;top:-4px;right:-6px;font-size:14px;display:none;background:var(--bg-card);border-radius:50%;width:22px;height:22px;align-items:center;justify-content:center;border:1px solid var(--sep);"></span>
+      </div>
       <div class="bird-info">
         <div class="bird-name" id="bird-name-display">小灰团</div>
         <div class="bird-tier" id="bird-tier-display">🌍 地球轨道</div>
@@ -713,11 +740,47 @@ body.night::before { opacity: 0.85; }
   <!-- Hidden file input for bird avatars -->
   <input type="file" id="bird-avatar-upload" accept="image/*" class="hidden" onchange="onBirdAvatarUpload(event)">
 
+  <!-- ════════════════════════════════════════════════════
+       Screen 6: 商店 (Bird Shop)
+       ════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-shop">
+    <div class="screen-header"><h2 style="font-size:22px;font-weight:700;">🛒 小鸟商店</h2></div>
+
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg-card);border-radius:var(--radius-sm);margin-bottom:14px;border:1px solid var(--sep);">
+      <span style="font-size:28px;">🪙</span>
+      <div style="flex:1;"><div style="font-size:18px;font-weight:700;color:var(--accent);" id="shop-points">0</div><div style="font-size:11px;color:var(--muted);">树枝币</div></div>
+      <span style="font-size:11px;color:var(--muted);">完成任务/读书/晋级获得</span>
+    </div>
+
+    <div class="section-label">🎀 小鸟装饰 <span style="font-weight:400;font-size:10px;color:var(--muted);margin-left:4px;">（点一下购买，再点装备）</span></div>
+    <div id="shop-decorations" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
+
+    <div class="section-label">🍜 虚拟食物 <span style="font-weight:400;font-size:10px;color:var(--muted);margin-left:4px;">（嘴馋的时候来过过瘾）</span></div>
+    <div id="shop-food" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
+
+    <div class="section-label">🖼️ 我的存货</div>
+    <div id="shop-inventory" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+
+    <div class="section-label" style="margin-top:14px;">🎨 上传自定义物品</div>
+    <div class="add-task-row">
+      <input class="text-input" id="custom-item-name" placeholder="物品名称" style="flex:1;">
+      <select class="cat-select" id="custom-item-cat"><option value="decoration">🎀 装饰</option><option value="food">🍜 食物</option></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <input class="text-input" id="custom-item-price" type="number" placeholder="价格(树枝币)" style="width:100px;">
+      <button class="outline-btn" onclick="document.getElementById('custom-item-img').click()" style="flex:1;">📷 上传图片</button>
+      <input type="file" id="custom-item-img" accept="image/*" class="hidden" onchange="previewCustomItem(event)">
+    </div>
+    <div id="custom-item-preview" style="margin-top:6px;"></div>
+    <button class="primary-btn" onclick="addCustomItem()" style="margin-top:6px;">+ 上架到商店</button>
+  </div>
+
   <!-- Bottom Nav -->
   <nav id="bottom-nav">
     <button class="nav-btn active" data-screen="today"><span class="nav-icon">🏠</span><span>今日</span></button>
     <button class="nav-btn" data-screen="stats"><span class="nav-icon">📊</span><span>统计</span></button>
     <button class="nav-btn" data-screen="books"><span class="nav-icon">📚</span><span>书架</span></button>
+    <button class="nav-btn" data-screen="shop"><span class="nav-icon">🛒</span><span>商店</span></button>
     <button class="nav-btn" data-screen="tasks-mgmt"><span class="nav-icon">📋</span><span>任务</span></button>
     <button class="nav-btn" data-screen="settings"><span class="nav-icon">⚙️</span><span>设置</span></button>
   </nav>
@@ -923,9 +986,11 @@ function blankState() {
       birdName: '小灰团',
       lastActiveDate: null,
       todayReadingPages: 0,
+      points: 0,
     },
     books: [],
     birdAvatars: {},
+    shop: { inventory: [], equipped: null, customItems: [] },
     league: {
       tier: 'earth',
       users: [],              // 100 birds, regenerated on settlement
@@ -953,6 +1018,8 @@ function load() {
       S.settings = Object.assign(blankState().settings, data.settings || {});
       S.books = data.books || [];
       S.birdAvatars = data.birdAvatars || {};
+      S.shop = data.shop || { inventory: [], equipped: null, customItems: [] };
+      S.user.points = (data.user && data.user.points) || 0;
       S.user.tasks = (data.user && data.user.tasks) ? data.user.tasks : DEFAULT_TASKS.map(t=>({...t}));
       S.user.todayCompletions = (data.user && data.user.todayCompletions) || {};
       S.user.history = (data.user && data.user.history) || [];
@@ -973,6 +1040,173 @@ function save() {
    DATE / STREAK LOGIC
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// ── Shop items catalog ──
+const DEFAULT_SHOP_ITEMS = [
+  { id:'shop_hat', name:'小礼帽', emoji:'🎩', price:10, category:'decoration' },
+  { id:'shop_crown', name:'小王冠', emoji:'👑', price:50, category:'decoration' },
+  { id:'shop_glasses', name:'墨镜', emoji:'🕶️', price:20, category:'decoration' },
+  { id:'shop_scarf', name:'围巾', emoji:'🧣', price:10, category:'decoration' },
+  { id:'shop_bow', name:'蝴蝶结', emoji:'🎀', price:15, category:'decoration' },
+  { id:'shop_flower', name:'花环', emoji:'🌺', price:15, category:'decoration' },
+  { id:'shop_ribbon', name:'小铃铛', emoji:'🔔', price:12, category:'decoration' },
+  { id:'shop_starclip', name:'星星发夹', emoji:'⭐', price:18, category:'decoration' },
+  { id:'shop_cake', name:'草莓蛋糕', emoji:'🍰', price:5, category:'food' },
+  { id:'shop_ramen', name:'深夜拉面', emoji:'🍜', price:8, category:'food' },
+  { id:'shop_boba', name:'奶茶', emoji:'🧋', price:3, category:'food' },
+  { id:'shop_donut', name:'甜甜圈', emoji:'🍩', price:5, category:'food' },
+  { id:'shop_icecream', name:'冰淇淋', emoji:'🍦', price:3, category:'food' },
+  { id:'shop_strawberry', name:'草莓', emoji:'🍓', price:2, category:'food' },
+  { id:'shop_cookie', name:'曲奇饼', emoji:'🍪', price:4, category:'food' },
+  { id:'shop_bread', name:'牛角包', emoji:'🥐', price:4, category:'food' },
+];
+
+function addPoints(amount, reason) {
+  if (!S.user.points) S.user.points = 0;
+  S.user.points += amount;
+  // Show small toast for point earnings
+  if (amount > 0) {
+    const el = document.getElementById('shop-points');
+    if (el) el.textContent = S.user.points;
+  }
+}
+
+function renderShop() {
+  if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[] };
+  if (!S.user.points) S.user.points = 0;
+  const inv = S.shop.inventory || [];
+  const eq = S.shop.equipped;
+
+  document.getElementById('shop-points').textContent = S.user.points;
+
+  const allItems = [...DEFAULT_SHOP_ITEMS, ...(S.shop.customItems || [])];
+
+  const renderGrid = (category) => {
+    return allItems.filter(it => it.category === category).map(it => {
+      const owned = inv.includes(it.id);
+      const isEq = eq === it.id;
+      let cls = 'shop-item';
+      if (isEq) cls += ' equipped';
+      else if (owned) cls += ' owned';
+      const imgHtml = it.image
+        ? `<div class="si-img"><img src="${it.image}" alt=""></div>`
+        : `<div class="si-img">${it.emoji || '📦'}</div>`;
+      const action = owned ? (isEq ? '已装备' : '点我装备') : `${it.price}🪙 购买`;
+      return `<div class="${cls}" onclick="shopAction('${it.id}')">
+        ${imgHtml}
+        <div class="si-name">${escHtml(it.name)}</div>
+        <div class="si-price">${action}</div>
+        ${owned ? '<div class="si-owned">✓ 已拥有</div>' : ''}
+      </div>`;
+    }).join('');
+  };
+
+  document.getElementById('shop-decorations').innerHTML = renderGrid('decoration');
+  document.getElementById('shop-food').innerHTML = renderGrid('food');
+
+  // Inventory
+  document.getElementById('shop-inventory').innerHTML = inv.map(id => {
+    const it = allItems.find(i => i.id === id);
+    if (!it) return '';
+    const isEq = eq === id;
+    const inner = it.image ? `<img src="${it.image}" alt="">` : (it.emoji || '📦');
+    return `<div class="inv-item ${isEq ? 'equipped' : ''}" onclick="equipItem('${id}')" title="${escHtml(it.name)}${isEq ? ' (已装备)' : ''}">${inner}</div>`;
+  }).join('');
+}
+
+function shopAction(itemId) {
+  const allItems = [...DEFAULT_SHOP_ITEMS, ...(S.shop?.customItems || [])];
+  const it = allItems.find(i => i.id === itemId);
+  if (!it) return;
+  if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[] };
+  if (!S.shop.inventory) S.shop.inventory = [];
+
+  if (S.shop.inventory.includes(itemId)) {
+    // Already owned → equip
+    equipItem(itemId);
+  } else {
+    // Buy
+    if ((S.user.points || 0) < it.price) {
+      toast('树枝币不够哦 🪙', 'info');
+      return;
+    }
+    S.user.points -= it.price;
+    S.shop.inventory.push(itemId);
+    if (!S.shop.equipped && it.category === 'decoration') {
+      S.shop.equipped = itemId;
+    }
+    if (it.category === 'food') {
+      toast(`🍜 吃掉了${it.name}！满足了吗？`, 'promo');
+    } else {
+      toast(`🎀 获得了${it.name}！`, 'promo');
+    }
+    save();
+    renderShop();
+    renderToday();
+  }
+}
+
+function equipItem(itemId) {
+  if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[] };
+  const allItems = [...DEFAULT_SHOP_ITEMS, ...(S.shop.customItems || [])];
+  const it = allItems.find(i => i.id === itemId);
+  if (!it || it.category !== 'decoration') return;
+
+  if (S.shop.equipped === itemId) {
+    S.shop.equipped = null; // unequip
+  } else {
+    S.shop.equipped = itemId;
+  }
+  save();
+  renderShop();
+  renderToday();
+}
+
+let _customItemImage = null;
+function previewCustomItem(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 100 * 1024) { toast('图片太大了，100KB以内吧', 'info'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 80; canvas.height = 80;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'transparent';
+      ctx.clearRect(0, 0, 80, 80);
+      ctx.drawImage(img, 0, 0, 80, 80);
+      _customItemImage = canvas.toDataURL('image/png');
+      document.getElementById('custom-item-preview').innerHTML =
+        `<img src="${_customItemImage}" style="width:60px;height:60px;object-fit:contain;border-radius:8px;border:2px solid var(--accent);"> 预览`;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function addCustomItem() {
+  const name = document.getElementById('custom-item-name').value.trim();
+  const cat = document.getElementById('custom-item-cat').value;
+  const price = parseInt(document.getElementById('custom-item-price').value) || 5;
+  if (!name) { toast('起个名字吧', 'info'); return; }
+  if (!_customItemImage) { toast('上传一张图片', 'info'); return; }
+  if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[] };
+  if (!S.shop.customItems) S.shop.customItems = [];
+  S.shop.customItems.push({
+    id: 'custom_' + Date.now(),
+    name, category: cat, price, image: _customItemImage, emoji: '🎨',
+  });
+  _customItemImage = null;
+  document.getElementById('custom-item-name').value = '';
+  document.getElementById('custom-item-price').value = '';
+  document.getElementById('custom-item-preview').innerHTML = '';
+  document.getElementById('custom-item-img').value = '';
+  save();
+  renderShop();
+  toast('✅ 物品已上架！', 'promo');
+}
+
 function checkDayRollover() {
   const today = todayStr();
   if (S.user.lastActiveDate && S.user.lastActiveDate !== today) {
@@ -985,9 +1219,12 @@ function checkDayRollover() {
     // Only record if there were tasks
     if (total > 0) {
       // Check if yesterday was a "complete" day (all tasks done)
-      const threshold = Math.ceil(total * 0.75); // 75%即算完成
+      const threshold = Math.ceil(total * 0.75);
       const allDone = completed >= threshold;
       if (allDone) {
+        // Award points for completing the day
+        const all100 = completed >= total;
+        addPoints(all100 ? 5 : 3, all100 ? '全勤日' : '达标日');
         S.user.streak++;
         if (S.user.streak > S.user.longestStreak) S.user.longestStreak = S.user.streak;
       } else {
@@ -1260,6 +1497,10 @@ function doSettlement(forDate) {
   S.user.tier = newTier;
   S.user.tierHistory.push({ tier: newTier, date: forDate, finalRank: userRank, result });
 
+  // Award points
+  if (result === 'promote') addPoints(20, '晋级奖励');
+  else if (result === 'stay' && userRank <= 30) addPoints(5, '排名靠前');
+
   // Generate new league for new tier
   const today = todayStr();
   S.league.tier = newTier;
@@ -1385,6 +1626,21 @@ function renderToday() {
   const cfg = TIER_CONFIG[S.user.tier];
   document.getElementById('bird-tier-display').textContent = `${cfg.icon} ${cfg.name}`;
 
+  // Show equipped decoration
+  const decoEl = document.getElementById('bird-decoration');
+  if (decoEl) {
+    if (S.shop?.equipped) {
+      const allItems = [...DEFAULT_SHOP_ITEMS, ...(S.shop.customItems || [])];
+      const eqItem = allItems.find(i => i.id === S.shop.equipped);
+      if (eqItem) {
+        decoEl.innerHTML = eqItem.image
+          ? `<img src="${eqItem.image}" style="width:20px;height:20px;object-fit:contain;">`
+          : eqItem.emoji;
+        decoEl.style.display = 'flex';
+      } else { decoEl.style.display = 'none'; }
+    } else { decoEl.style.display = 'none'; }
+  }
+
   // Status
   document.getElementById('status-rank').textContent = '#' + userRank;
   document.getElementById('status-score').textContent = String(userScore);
@@ -1502,6 +1758,7 @@ function toggleTask(taskId) {
   bird.classList.add('bounce');
 
   save();
+  addPoints(1, '完成任务'); // +1 per task
   renderToday();
 
   // Toast on first completion of the day
@@ -1616,9 +1873,17 @@ function renderBadges() {
     el.innerHTML = '<span style="font-size:13px;color:var(--muted);">还没有徽章。坚持做任务就会解锁！</span>';
     return;
   }
-  el.innerHTML = S.user.badges.map(b =>
-    `<span style="font-size:13px;padding:6px 10px;background:var(--bg-card);border-radius:10px;display:flex;align-items:center;gap:5px;" title="${b.desc || ''} · ${b.earnedAt}">${b.emoji} ${b.name}</span>`
-  ).join('');
+  el.innerHTML = S.user.badges.length === 0
+    ? '<span style="font-size:13px;color:var(--muted);">还没有徽章。坚持做任务就会解锁！</span>'
+    : S.user.badges.map(b => `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);border-radius:var(--radius-sm);border:1px solid var(--sep);margin-bottom:6px;">
+        <div style="font-size:28px;flex-shrink:0;width:40px;text-align:center;">${b.emoji}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:600;color:var(--text);">${escHtml(b.name)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(b.desc || '')}</div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);text-align:right;flex-shrink:0;">${b.earnedAt}</div>
+      </div>`).join('');
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1753,7 +2018,8 @@ function updateBookProgress() {
     book.status = 'done';
     book.doneAt = todayStr();
     checkBadges();
-    toast('🎉 读完了一本书！树枝+5分', 'promo');
+    addPoints(10, '读完一本书');
+    toast('🎉 读完了一本书！树枝+5分 🪙+10', 'promo');
   }
 
   hideEditBookModal();
@@ -1777,10 +2043,11 @@ function markBookDone() {
   book.doneAt = todayStr();
   hideEditBookModal();
   checkBadges();
+  addPoints(10, '读完一本书');
   save();
   renderBooks();
   renderToday();
-  toast('🎉 读完了一本书！树枝+5分', 'promo');
+  toast('🎉 读完了一本书！树枝+5分 🪙+10', 'promo');
 }
 
 function deleteBook() {
@@ -2012,6 +2279,7 @@ function showScreen(name) {
   if (name === 'today') renderToday();
   else if (name === 'stats') renderStats();
   else if (name === 'books') renderBooks();
+  else if (name === 'shop') renderShop();
   else if (name === 'tasks-mgmt') renderTasksMgmt();
   else if (name === 'settings') renderSettings();
 }
