@@ -482,7 +482,7 @@ body.night::before { opacity: 0.85; }
       </div>
       <div class="status-card">
         <div class="sc-val" id="status-score">73.5</div>
-        <div class="sc-label">树枝</div>
+        <div class="sc-label">树枝 <span onclick="showRulesModal();event.stopPropagation()" style="cursor:pointer;font-size:13px;" title="规则说明">❓</span></div>
       </div>
       <div class="status-card">
         <div class="sc-val" id="status-streak">3</div>
@@ -492,7 +492,7 @@ body.night::before { opacity: 0.85; }
 
     <div class="madam-card" id="madam-quote">门在那边。</div>
 
-    <div class="section-label">📋 今日任务 <span id="task-progress" style="margin-left:auto;font-weight:400">0/0</span></div>
+    <div class="section-label">📋 今日任务 <span id="reading-pages-indicator" style="margin-left:auto;margin-right:8px;font-weight:400;font-size:11px;color:var(--accent);"></span><span id="task-progress" style="font-weight:400">0/0</span></div>
     <div id="task-list"></div>
 
     <div class="section-label" style="margin-top:18px;">🏆 小鸟排名 <span class="rank-update" id="rank-update-text">下次更新: --</span></div>
@@ -634,6 +634,68 @@ body.night::before { opacity: 0.85; }
   <button id="float-chat-btn" onclick="showMadamChat()" title="跟Madam聊聊">
     🐦
   </button>
+
+  <!-- ════════════════════════════════════════════════════
+       Rules Modal
+       ════════════════════════════════════════════════════ -->
+  <div class="modal hidden" id="rules-modal">
+    <div class="modal-overlay" onclick="hideRulesModal()"></div>
+    <div class="modal-sheet" style="max-height:80dvh;overflow-y:auto;">
+      <h3>📖 森林生存指南</h3>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:700;font-size:14px;color:var(--accent);margin-bottom:4px;">🌿 树枝（分数）计算</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;">
+          树枝 = <b>连续天数 × 50%</b> + <b>完成率 × 30%</b> + <b>完成速度 × 20%</b> + <b>阅读加成</b><br><br>
+          • 连续天数：最多计30天，不到30天按比例<br>
+          • 完成率：今日完成任务 / 今日总任务<br>
+          • 完成速度：12点前完成→100分，18点前→75分，23点前→50分，之后→25分<br>
+          • 阅读加成：每日读50页以上→+5分；读完一本书→当天额外+5分
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:700;font-size:14px;color:var(--accent);margin-bottom:4px;">🚀 等级系统</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;">
+          🌍 地球轨道 → 🌙 月球基地 → 🪐 火星前哨 → 💫 小行星带 → ⭐ 木星站 → 🚀 深空探索<br><br>
+          每天 ${S.settings.resetHour || 23}:00 结算：<br>
+          • 前10名 → ⬆️ 晋级<br>
+          • 11-70名 → ➡️ 保级<br>
+          • 71-100名 → ⬇️ 降级（地球轨道不降）<br>
+          晋级后生成100只新的小鸟对手。
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:700;font-size:14px;color:var(--accent);margin-bottom:4px;">🐦 小鸟对手</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;">
+          100只小鸟各有隐藏的行为模式：基础完成率、连续天数、作息时间。每6小时更新一次排名。<br>
+          点小鸟头像→上传自定义头像。点小鸟→AI生成吐槽（需DeepSeek API）。
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:700;font-size:14px;color:var(--accent);margin-bottom:4px;">📚 阅读加成</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;">
+          • 每日阅读页数计入树枝（每50页+5分，封顶5分）<br>
+          • 读完一本书：当天额外+5分 + 解锁徽章<br>
+          • 书架小鸟停在正在读的书上
+        </div>
+      </div>
+
+      <button class="primary-btn" onclick="hideRulesModal()">知道了</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       Bird Profile Modal (视奸小鸟)
+       ════════════════════════════════════════════════════ -->
+  <div class="modal hidden" id="bird-profile-modal">
+    <div class="modal-overlay" onclick="hideBirdProfile()"></div>
+    <div class="modal-sheet" style="max-height:78dvh;overflow-y:auto;">
+      <div id="bird-profile-content"></div>
+    </div>
+  </div>
 
   <!-- Hidden file input for bird avatars -->
   <input type="file" id="bird-avatar-upload" accept="image/*" class="hidden" onchange="onBirdAvatarUpload(event)">
@@ -827,6 +889,7 @@ function blankState() {
       badges: [],
       birdName: '小灰团',
       lastActiveDate: null,
+      todayReadingPages: 0,
     },
     books: [],
     birdAvatars: {},
@@ -904,8 +967,9 @@ function checkDayRollover() {
       });
     }
 
-    // Reset today's completions
+    // Reset today's completions and reading pages
     S.user.todayCompletions = {};
+    S.user.todayReadingPages = 0;
     S.user.lastActiveDate = today;
 
     // Reset settlement flag for new day
@@ -1061,7 +1125,16 @@ function calcUserScore() {
     timeScore = avgTime < 12 ? 100 : avgTime < 18 ? 75 : avgTime < 23 ? 50 : 25;
   }
 
-  return Math.round((completionScore * 0.3 + streakScore * 0.5 + timeScore * 0.2) * 10) / 10;
+  // Reading bonus: pages read today
+  const todayPages = S.user.todayReadingPages || 0;
+  const readingBonus = Math.min(todayPages / 50, 1) * 5; // max 5 points for 50+ pages
+
+  // Book completion bonus: check if any book was finished today
+  const today = todayStr();
+  const booksDoneToday = S.books.filter(b => b.doneAt === today).length;
+  const bookBonus = booksDoneToday * 5;
+
+  return Math.round((completionScore * 0.3 + streakScore * 0.5 + timeScore * 0.2 + readingBonus + bookBonus) * 10) / 10;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1273,6 +1346,10 @@ function renderToday() {
 
   // Tasks
   document.getElementById('task-progress').textContent = `${done}/${tasks.length}`;
+  // Show reading pages if any
+  const readingPages = S.user.todayReadingPages || 0;
+  const rpEl = document.getElementById('reading-pages-indicator');
+  if (rpEl) rpEl.textContent = readingPages > 0 ? `📖 ${readingPages}页` : '';
   const taskList = document.getElementById('task-list');
   taskList.innerHTML = tasks.map(t => {
     const completed = !!S.user.todayCompletions[t.id];
@@ -1323,9 +1400,9 @@ function renderToday() {
     let birdAvatarHtml;
     const customImg = S.birdAvatars?.[e.name];
     if (customImg) {
-      birdAvatarHtml = `<span class="rank-bird rank-bird-img" style="background-image:url(${customImg})" onclick="event.stopPropagation();uploadBirdAvatar('${escHtml(e.name)}')" title="点我换头像"></span>`;
+      birdAvatarHtml = `<span class="rank-bird rank-bird-img" style="background-image:url(${customImg})" onclick="event.stopPropagation();showBirdProfile('${escHtml(e.name)}',${e.score},${rank})" title="视奸小鸟"></span>`;
     } else {
-      birdAvatarHtml = `<span class="rank-bird" onclick="event.stopPropagation();uploadBirdAvatar('${escHtml(e.name)}')" title="点我换头像">${e.birdEmoji || '🐦'}</span>`;
+      birdAvatarHtml = `<span class="rank-bird" onclick="event.stopPropagation();showBirdProfile('${escHtml(e.name)}',${e.score},${rank})" title="视奸小鸟">${e.birdEmoji || '🐦'}</span>`;
     }
 
     return `
@@ -1607,25 +1684,41 @@ function updateBookProgress() {
   const book = S.books.find(b => b.id === editingBookId);
   if (!book) return;
 
+  const oldPage = book.currentPage;
   const page = parseInt(document.getElementById('edit-book-page').value) || 0;
   book.currentPage = clamp(page, 0, book.totalPages || page);
+
+  // Track daily reading pages
+  const delta = book.currentPage - oldPage;
+  if (delta > 0) {
+    if (!S.user.todayReadingPages) S.user.todayReadingPages = 0;
+    S.user.todayReadingPages += delta;
+  }
+
   if (book.currentPage > 0 && book.status === 'unread') book.status = 'reading';
   if (book.currentPage >= book.totalPages && book.totalPages > 0) {
     book.status = 'done';
     book.doneAt = todayStr();
     checkBadges();
-    toast('🎉 读完了一本书！', 'promo');
+    toast('🎉 读完了一本书！树枝+5分', 'promo');
   }
 
   hideEditBookModal();
   save();
   renderBooks();
+  renderToday();
 }
 
 function markBookDone() {
   if (!editingBookId) return;
   const book = S.books.find(b => b.id === editingBookId);
   if (!book) return;
+  // Track pages read today
+  const delta = (book.totalPages || book.currentPage) - book.currentPage;
+  if (delta > 0) {
+    if (!S.user.todayReadingPages) S.user.todayReadingPages = 0;
+    S.user.todayReadingPages += delta;
+  }
   book.status = 'done';
   book.currentPage = book.totalPages;
   book.doneAt = todayStr();
@@ -1633,7 +1726,8 @@ function markBookDone() {
   checkBadges();
   save();
   renderBooks();
-  toast('🎉 读完了一本书！', 'promo');
+  renderToday();
+  toast('🎉 读完了一本书！树枝+5分', 'promo');
 }
 
 function deleteBook() {
@@ -2039,6 +2133,94 @@ ${text.includes('洗澡') || text.includes('刷牙') || text.includes('门') ? '
     addChatMsg('madam', 'API调用失败。检查key或者网络。');
     console.warn('DeepSeek error:', e);
   }
+}
+
+// ── Rules Modal ──
+function showRulesModal() {
+  document.getElementById('rules-modal').classList.remove('hidden');
+}
+function hideRulesModal() {
+  document.getElementById('rules-modal').classList.add('hidden');
+}
+
+// ── Bird Profile (视奸小鸟) ──
+let _birdProfileCache = {};
+
+async function showBirdProfile(birdName, birdScore, birdRank) {
+  const modal = document.getElementById('bird-profile-modal');
+  const content = document.getElementById('bird-profile-content');
+
+  const chatter = BIRD_CHATTER[birdName] || { emoji: '🐦', mood: '普通', phrases: ['...'] };
+  const customImg = S.birdAvatars?.[birdName];
+
+  // Generate tasks based on behavior or AI
+  let tasksHtml = '';
+  if (aiEnabled() && !_birdProfileCache[birdName]) {
+    try {
+      const taskList = await callDeepSeek([
+        { role: 'system', content: `你是一只叫"${birdName}"的森林小鸟，性格${chatter.mood}。列出你今天的5个日常任务。每行一个，格式："☐ 任务描述"。任务要符合${birdName}这种鸟的天性和刻板印象。比如猫头鹰的任务可能是"白天补觉""半夜站岗"，企鹅可能是"冰上滑行""抓鱼"。不需要完成状态，只列任务。` },
+        { role: 'user', content: '列出你今天要做的5件事。' },
+      ], 150);
+      _birdProfileCache[birdName] = taskList;
+    } catch(e) { /* fall through to template */ }
+  }
+
+  if (_birdProfileCache[birdName]) {
+    tasksHtml = _birdProfileCache[birdName].split('\n').filter(l => l.trim()).map(l =>
+      `<div style="padding:4px 0;font-size:13px;color:var(--text2);">${escHtml(l.replace(/^[-*•]\s*/, ''))}</div>`
+    ).join('');
+  } else {
+    // Template tasks based on mood
+    const templates = {
+      '社牛': ['叽叽喳喳社交', '串门拜访邻居', '广场合唱', '教幼鸟飞行', '巡视领地'],
+      '丧': ['发呆', '叹气', '勉强觅食', '假装不在窝里', '敷衍理毛'],
+      '元气': ['早起唱歌', '晨间飞行', '打理羽毛', '收集筑巢材料', '帮助迷路小鸟'],
+      '高冷': ['独自捕鱼', '水面照镜子', '单脚站立', '无视搭讪', '优雅理羽'],
+      '夜猫': ['白天补觉', '半夜站岗', '抓田鼠', '睁一只眼闭一只眼', '月下独啸'],
+      '憨憨': ['肚子滑冰', '排队跳水', '被自己的脚绊倒', '找妈妈', '吃小鱼'],
+      '优雅': ['单脚站立思考', '梳理粉色羽毛', '拒绝低质量社交', '挑选今日食谱', '湖边散步'],
+      '话痨': ['学舌新词', '复读邻居的话', '自言自语', '跟镜子吵架', '模仿门铃'],
+      '逃避': ['把头埋进沙子', '假装没看到任务', '换个地方埋', '希望问题自己消失', '计划明天开始努力'],
+      '执着': ['笃笃笃笃笃', '笃笃笃', '笃——树倒了', '换棵树继续', '头铁就是干'],
+      '凶萌': ['串储备粮', '巡视冰箱', '看谁都不顺眼', '（但个子太小）', '气鼓鼓回窝'],
+    };
+    const t = templates[chatter.mood] || ['觅食', '理毛', '飞行训练', '唱歌', '休息'];
+    tasksHtml = t.map(task =>
+      `<div style="padding:4px 0;font-size:13px;color:var(--text2);">${escHtml(task)}</div>`
+    ).join('');
+  }
+
+  const avatarSrc = customImg || '';
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+      <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--bg-input);display:flex;align-items:center;justify-content:center;border:2px solid var(--sep);cursor:pointer;" onclick="event.stopPropagation();uploadBirdAvatar('${escHtml(birdName)}')" title="点我换头像">
+        ${customImg ? `<img src="${customImg}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:32px;">${chatter.emoji}</span>`}
+      </div>
+      <div>
+        <div style="font-size:18px;font-weight:700;">${escHtml(birdName)}</div>
+        <div style="font-size:12px;color:var(--muted);">#${birdRank} · 树枝 ${birdScore.toFixed(1)} · ${escHtml(chatter.mood)}</div>
+      </div>
+    </div>
+
+    <div style="margin:12px 0;padding:10px 14px;background:var(--bg-input);border-radius:var(--radius-sm);font-size:13px;color:var(--text2);">
+      <b>性格：</b>${escHtml(chatter.mood)}<br>
+      <b>口头禅：</b>"${escHtml(chatter.phrases[0] || '...')}"<br>
+      <b>鸟设：</b>${BIRD_CHATTER[birdName]?.phrases?.slice(0,2).join(' / ') || '一只普通的小鸟'}
+    </div>
+
+    <div class="section-label">📋 今日任务</div>
+    <div style="margin-bottom:12px;">${tasksHtml}</div>
+    ${aiEnabled() && !_birdProfileCache[birdName] ? '<div style="font-size:11px;color:var(--muted);text-align:center;">（AI正在生成中，下次打开刷新）</div>' : ''}
+    ${_birdProfileCache[birdName] ? '<div style="font-size:10px;color:var(--muted);text-align:center;">🤖 AI生成</div>' : ''}
+
+    <button class="primary-btn" onclick="hideBirdProfile()">飞走</button>
+  `;
+
+  modal.classList.remove('hidden');
+}
+
+function hideBirdProfile() {
+  document.getElementById('bird-profile-modal').classList.add('hidden');
 }
 
 // ── Settings ──
