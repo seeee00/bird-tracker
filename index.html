@@ -752,11 +752,12 @@ body.night::before { opacity: 0.85; }
       <div style="margin-bottom:14px;">
         <div style="font-weight:700;font-size:14px;color:var(--accent);margin-bottom:4px;">🪙 树枝币</div>
         <div style="font-size:12px;color:var(--text2);line-height:1.7;">
-          • 每完成一个任务：<b>+1</b><br>
+          • 每完成一个任务：<b>+1</b>（24h内新建任务不产币）<br>
           • 每日达标（75%+）：<b>+3</b> · 全勤（100%）：<b>+5</b><br>
           • 读完一本书：<b>+10</b><br>
           • 晋级新等级：<b>+20</b> · 排名前30保级：<b>+5</b><br>
-          • 初始赠送：<b>100</b><br>
+          • 初始赠送：<b>50</b><br>
+          • ⚠️ 单日上限 <b>50</b><br>
           • 树枝币可在🛒商店购买装饰和虚拟食物
         </div>
       </div>
@@ -807,15 +808,16 @@ body.night::before { opacity: 0.85; }
     </div>
 
     <details style="margin-bottom:12px;font-size:12px;color:var(--text2);background:var(--bg-card);border-radius:var(--radius-sm);padding:10px 14px;border:1px solid var(--sep);cursor:pointer;">
-      <summary style="font-weight:600;color:var(--accent);">🪙 树枝币怎么赚？</summary>
+      <summary style="font-weight:600;color:var(--accent);">🪙 树枝币怎么赚？（日上限50）</summary>
       <div style="margin-top:8px;line-height:1.8;">
-        • 每完成一个任务 <b>+1</b><br>
+        • 每完成一个任务 <b>+1</b>（24h内新建任务不产币）<br>
         • 每日达标（75%以上）<b>+3</b><br>
         • 每日全勤（100%）<b>+5</b><br>
         • 读完一本书 <b>+10</b><br>
         • 晋级到新等级 <b>+20</b><br>
         • 排名前30但未晋级 <b>+5</b><br>
-        • 初始赠送 <b>50</b>
+        • 初始赠送 <b>50</b><br>
+        • ⚠️ 单日最多赚 <b>50</b> 币
       </div>
     </details>
 
@@ -1054,6 +1056,7 @@ function blankState() {
       lastActiveDate: null,
       todayReadingPages: 0,
       todayPointsAwarded: {},
+      todayCoinsEarned: 0,
     },
     books: [],
     birdAvatars: {},
@@ -1111,28 +1114,33 @@ function save() {
 
 // ── Shop items catalog ──
 const DEFAULT_SHOP_ITEMS = [
-  { id:'shop_hat', name:'小礼帽', emoji:'🎩', price:10, category:'decoration' },
-  { id:'shop_crown', name:'小王冠', emoji:'👑', price:50, category:'decoration' },
-  { id:'shop_glasses', name:'墨镜', emoji:'🕶️', price:20, category:'decoration' },
-  { id:'shop_scarf', name:'围巾', emoji:'🧣', price:10, category:'decoration' },
-  { id:'shop_bow', name:'蝴蝶结', emoji:'🎀', price:15, category:'decoration' },
-  { id:'shop_flower', name:'花环', emoji:'🌺', price:15, category:'decoration' },
-  { id:'shop_ribbon', name:'小铃铛', emoji:'🔔', price:12, category:'decoration' },
-  { id:'shop_starclip', name:'星星发夹', emoji:'⭐', price:18, category:'decoration' },
-  { id:'shop_cake', name:'草莓蛋糕', emoji:'🍰', price:5, category:'food' },
-  { id:'shop_ramen', name:'深夜拉面', emoji:'🍜', price:8, category:'food' },
-  { id:'shop_boba', name:'奶茶', emoji:'🧋', price:3, category:'food' },
-  { id:'shop_donut', name:'甜甜圈', emoji:'🍩', price:5, category:'food' },
-  { id:'shop_icecream', name:'冰淇淋', emoji:'🍦', price:3, category:'food' },
-  { id:'shop_strawberry', name:'草莓', emoji:'🍓', price:2, category:'food' },
-  { id:'shop_cookie', name:'曲奇饼', emoji:'🍪', price:4, category:'food' },
-  { id:'shop_bread', name:'牛角包', emoji:'🥐', price:4, category:'food' },
+  { id:'shop_hat', name:'小礼帽', emoji:'🎩', price:25, category:'decoration' },
+  { id:'shop_crown', name:'小王冠', emoji:'👑', price:150, category:'decoration' },
+  { id:'shop_glasses', name:'墨镜', emoji:'🕶️', price:50, category:'decoration' },
+  { id:'shop_scarf', name:'围巾', emoji:'🧣', price:25, category:'decoration' },
+  { id:'shop_bow', name:'蝴蝶结', emoji:'🎀', price:40, category:'decoration' },
+  { id:'shop_flower', name:'花环', emoji:'🌺', price:40, category:'decoration' },
+  { id:'shop_ribbon', name:'小铃铛', emoji:'🔔', price:30, category:'decoration' },
+  { id:'shop_starclip', name:'星星发夹', emoji:'⭐', price:45, category:'decoration' },
+  { id:'shop_cake', name:'草莓蛋糕', emoji:'🍰', price:12, category:'food' },
+  { id:'shop_ramen', name:'深夜拉面', emoji:'🍜', price:20, category:'food' },
+  { id:'shop_boba', name:'奶茶', emoji:'🧋', price:8, category:'food' },
+  { id:'shop_donut', name:'甜甜圈', emoji:'🍩', price:12, category:'food' },
+  { id:'shop_icecream', name:'冰淇淋', emoji:'🍦', price:8, category:'food' },
+  { id:'shop_strawberry', name:'草莓', emoji:'🍓', price:5, category:'food' },
+  { id:'shop_cookie', name:'曲奇饼', emoji:'🍪', price:10, category:'food' },
+  { id:'shop_bread', name:'牛角包', emoji:'🥐', price:10, category:'food' },
 ];
 
 function addPoints(amount, reason) {
   if (!S.user.points) S.user.points = 0;
-  S.user.points += amount;
-  // Show small toast for point earnings
+  // Daily cap: 50 coins max per day
+  if (!S.user.todayCoinsEarned) S.user.todayCoinsEarned = 0;
+  const remaining = 50 - S.user.todayCoinsEarned;
+  if (remaining <= 0) return; // capped
+  const actual = Math.min(amount, remaining);
+  S.user.points += actual;
+  S.user.todayCoinsEarned += actual;
   if (amount > 0) {
     const el = document.getElementById('shop-points');
     if (el) el.textContent = S.user.points;
@@ -1407,6 +1415,7 @@ function checkDayRollover() {
     S.user.todayCompletions = {};
     S.user.todayReadingPages = 0;
     S.user.todayPointsAwarded = {};
+    S.user.todayCoinsEarned = 0;
     S.user.lastActiveDate = today;
 
     // Reset settlement flag for new day
@@ -1918,8 +1927,12 @@ function toggleTask(taskId) {
   } else {
     S.user.todayCompletions[taskId] = Date.now();
     // Award coin only once per task per day
+    // New tasks: 24h cooldown before they start giving coins
+    const task = S.user.tasks.find(t => t.id === taskId);
+    const taskAge = task?.createdAt ? Date.now() - task.createdAt : 999999;
+    const canEarn = taskAge > 86400000; // 24h
     if (!S.user.todayPointsAwarded) S.user.todayPointsAwarded = {};
-    if (!S.user.todayPointsAwarded[taskId]) {
+    if (!S.user.todayPointsAwarded[taskId] && canEarn) {
       addPoints(1, '完成任务');
       S.user.todayPointsAwarded[taskId] = true;
     }
