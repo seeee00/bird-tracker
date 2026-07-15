@@ -787,6 +787,19 @@ body.night::before { opacity: 0.85; }
   <div class="screen" id="screen-shop">
     <div class="screen-header"><h2 style="font-size:22px;font-weight:700;">🛒 小鸟商店</h2></div>
 
+    <!-- Shopkeeper -->
+    <div style="display:flex;gap:12px;background:var(--bg-card);border-radius:var(--radius);padding:14px;margin-bottom:14px;border:1px solid var(--sep);align-items:center;">
+      <div id="shopkeeper-portrait" style="width:80px;height:80px;border-radius:var(--radius-sm);background:var(--bg-input);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:48px;cursor:pointer;border:2px dashed var(--sep);" onclick="document.getElementById('shopkeeper-upload').click()" title="点我换老板肖像">
+        🦜
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);">鹩哥老板</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">"哥会说话，也会做生意"</div>
+        <div id="shopkeeper-greeting" style="font-size:12px;color:var(--accent);margin-top:4px;font-style:italic;"></div>
+      </div>
+      <input type="file" id="shopkeeper-upload" accept="image/*" class="hidden" onchange="uploadShopkeeper(event)">
+    </div>
+
     <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg-card);border-radius:var(--radius-sm);margin-bottom:14px;border:1px solid var(--sep);">
       <span style="font-size:28px;">🪙</span>
       <div style="flex:1;"><div style="font-size:18px;font-weight:700;color:var(--accent);" id="shop-points">0</div><div style="font-size:11px;color:var(--muted);">树枝币</div></div>
@@ -1126,7 +1139,66 @@ function addPoints(amount, reason) {
   }
 }
 
+// ── Shopkeeper ──
+const SHOPKEEPER_GREETINGS = [
+  '欢迎光临！哥这儿什么都有。',
+  '树枝币够不够？不够去干活。',
+  '今天刚到的新货，看看。',
+  '嘴馋了？虚拟食物吃不胖。',
+  '晚上别乱花钱，来哥这儿过过瘾。',
+  '买顶帽子吧，你那只鸟需要。',
+  '哥会说话，更会推销。',
+  '又来啦？这次买点啥？',
+];
+
+function renderShopkeeper() {
+  const portrait = document.getElementById('shopkeeper-portrait');
+  if (S.customIcons?.shopkeeper) {
+    portrait.innerHTML = `<img src="${S.customIcons.shopkeeper}" style="width:100%;height:100%;object-fit:cover;">`;
+    portrait.style.fontSize = '0';
+  } else {
+    portrait.innerHTML = '🦜';
+    portrait.style.fontSize = '48px';
+  }
+
+  // Random greeting (changes each visit)
+  const g = SHOPKEEPER_GREETINGS[Math.floor(Math.random() * SHOPKEEPER_GREETINGS.length)];
+  const greetEl = document.getElementById('shopkeeper-greeting');
+  if (greetEl) greetEl.textContent = '"' + g + '"';
+}
+
+function uploadShopkeeper(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 300 * 1024) { toast('图片太大了，300KB以内吧', 'info'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      // Landscape rectangle: 240x160
+      const canvas = document.createElement('canvas');
+      canvas.width = 240; canvas.height = 160;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#f3efe7';
+      ctx.fillRect(0, 0, 240, 160);
+      // Fit image inside
+      const scale = Math.min(220 / img.width, 140 / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (240-w)/2, (160-h)/2, w, h);
+      if (!S.customIcons) S.customIcons = {};
+      S.customIcons.shopkeeper = canvas.toDataURL('image/jpeg', 0.8);
+      save();
+      renderShopkeeper();
+      toast('🦜 老板新头像！', 'promo');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
 function renderShop() {
+  renderShopkeeper();
   if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[], itemImages:{} };
   if (!S.shop.itemImages) S.shop.itemImages = {};
   if (!S.user.points) S.user.points = 0;
