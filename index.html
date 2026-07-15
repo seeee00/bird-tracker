@@ -175,6 +175,17 @@ body.night::before { opacity: 0.85; }
 }
 .madam-card::before { content: 'Madam: '; font-weight: 600; font-style: normal; color: var(--accent); }
 
+/* ── Bird soup card (gentle, warm) ── */
+.soup-card {
+  background: linear-gradient(135deg, rgba(180,150,100,0.06), rgba(180,150,100,0.02));
+  border-left: 3px solid var(--accent2);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px; margin-bottom: 14px;
+  font-size: 13px; color: var(--text2); line-height: 1.6; font-style: italic;
+  opacity: 0.85;
+}
+.soup-card::before { content: '🐦 小鸟说：'; font-weight: 600; font-style: normal; color: var(--accent2); }
+
 /* ── Section ── */
 .section-label {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
@@ -492,6 +503,7 @@ body.night::before { opacity: 0.85; }
     </div>
 
     <div class="madam-card" id="madam-quote">门在那边。</div>
+    <div class="soup-card" id="bird-soup"></div>
 
     <div class="section-label">📋 今日任务 <span id="reading-pages-indicator" style="margin-left:auto;margin-right:8px;font-weight:400;font-size:11px;color:var(--accent);"></span><span id="task-progress" style="font-weight:400">0/0</span></div>
     <div id="task-list"></div>
@@ -829,6 +841,26 @@ const MADAM_QUOTES = {
   streak_break: ['弦断了。重接就是。', '不是从零开始——是从经验开始。'],
   settlement_promote: ['晋级了。门开大了一点。', '新轨道。继续飞。'],
   settlement_demote: ['降级了。还在飞就行。', '轨道低一点而已。重新爬。'],
+  bird_soup: [
+    '小鸟每天的任务就是吃饱、飞一飞、晚上回巢。你也是。',
+    '树上的鸟不比较谁飞得更高——各有各的树枝。',
+    '今天没飞多远没关系。停在树枝上歇一歇，也是飞行的一部分。',
+    '小鸟不焦虑冬天要来——它只是每天捡一根树枝、一粒种子。',
+    '你看树上的鸟——它不写todolist，但知道什么时候该飞、什么时候该停。',
+    '鸟巢是一根一根搭起来的。你今天搭的那根，就在那里。',
+    '候鸟飞几千公里也会中途休息。你不是拖延，你是在蓄力。',
+    '每只鸟都有自己的节奏。蜂鸟一秒扇80下，信天翁可以滑翔一整天。都对。',
+    '小鸟早上醒来第一件事不是check排名——是抖抖羽毛，叫一声。',
+    '你不需要变成鹰。做一只麻雀，叽叽喳喳吃饱了在树枝上晃，已经很棒了。',
+    '猫头鹰白天睡觉不是懒——它有自己活着的时区。',
+    '企鹅走路笨笨的，到了水里比谁都灵活。你的笨拙只是还没到对的环境。',
+    '一只鸟每天只需要三件事：吃、飞、安全回巢。你今天做到任何一件，就很好了。',
+    '树上叽叽喳喳的鸟看起来什么都没做——但它们活着，就是森林的一部分。你也是。',
+    '啄木鸟笃笃笃敲一整天只为了找几条虫。你的努力，树会记得。',
+    '小鸟不会因为今天没唱歌就不是鸟了。你不做任务，也还是你。',
+    '杜鹃把蛋放在别人窝里——有些事，找对方法比硬扛更聪明。',
+    '成年鸟也会掉羽毛。那不是退步，是换新。',
+  ],
 };
 
 const DEFAULT_TASKS = [
@@ -1344,6 +1376,10 @@ function renderToday() {
 
   // Madam
   document.getElementById('madam-quote').textContent = getMadamQuote();
+
+  // Bird soup — daily random, same all day
+  const soupIdx = hashStr(todayStr() + '_soup') % MADAM_QUOTES.bird_soup.length;
+  document.getElementById('bird-soup').textContent = MADAM_QUOTES.bird_soup[soupIdx];
 
   // Tasks
   document.getElementById('task-progress').textContent = `${done}/${tasks.length}`;
