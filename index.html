@@ -1382,60 +1382,62 @@ function addCustomItem() {
 
 function checkDayRollover() {
   const today = todayStr();
-  if (S.user.lastActiveDate && S.user.lastActiveDate !== today) {
-    // Archive yesterday's data
-    const yesterday = S.user.lastActiveDate;
-    const tasks = S.user.tasks.filter(t => t.enabled);
-    const completed = tasks.filter(t => S.user.todayCompletions[t.id]).length;
-    const total = tasks.length;
 
-    // Only record if there were tasks
-    if (total > 0) {
-      // Check if yesterday was a "complete" day (all tasks done)
-      const threshold = Math.ceil(total * 0.75);
-      const allDone = completed >= threshold;
-      if (allDone) {
-        // Award points for completing the day
-        const all100 = completed >= total;
-        addPoints(all100 ? 5 : 3, all100 ? '全勤日' : '达标日');
-        S.user.streak++;
-        if (S.user.streak > S.user.longestStreak) S.user.longestStreak = S.user.streak;
-      } else {
-        S.user.streak = 0;
-      }
-
-      S.user.history.push({
-        date: yesterday,
-        completedCount: completed,
-        totalCount: total,
-      });
-    }
-
-    // Reset today's completions, reading pages, and coin awards
-    S.user.todayCompletions = {};
-    S.user.todayReadingPages = 0;
-    S.user.todayPointsAwarded = {};
-    S.user.todayCoinsEarned = 0;
-    S.user.lastActiveDate = today;
-
-    // Reset settlement flag for new day
-    S.league.settlementDone = false;
-    S.league.daySeed = today;
-  }
+  // First ever load: just set date
   if (!S.user.lastActiveDate) {
     S.user.lastActiveDate = today;
+    save();
+    return;
   }
 
-  // Check if streak needs to be broken (missed a day)
-  if (S.user.lastActiveDate !== today) {
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth()+1).padStart(2,'0')}-${String(yesterdayDate.getDate()).padStart(2,'0')}`;
-    if (S.user.lastActiveDate !== yesterdayStr && S.user.lastActiveDate !== today) {
+  // Same day: nothing to do
+  if (S.user.lastActiveDate === today) return;
+
+  // ── Day changed! Archive yesterday ──
+  // First: catch up missed settlement from yesterday
+  const nowH = new Date().getHours();
+  if (S.league.daySeed === S.user.lastActiveDate && S.league.lastUpdate && !S.league.settlementDone && nowH >= S.settings.resetHour) {
+    doSettlement(S.user.lastActiveDate);
+  }
+
+  const yesterday = S.user.lastActiveDate;
+  const tasks = S.user.tasks.filter(t => t.enabled);
+  const completed = tasks.filter(t => S.user.todayCompletions[t.id]).length;
+  const total = tasks.length;
+
+  if (total > 0) {
+    const threshold = Math.ceil(total * 0.75);
+    const allDone = completed >= threshold;
+
+    // Reset daily counters BEFORE awarding points
+    S.user.todayCoinsEarned = 0;
+
+    if (allDone) {
+      const all100 = completed >= total;
+      addPoints(all100 ? 5 : 3, all100 ? '全勤日' : '达标日');
+      S.user.streak++;
+      if (S.user.streak > S.user.longestStreak) S.user.longestStreak = S.user.streak;
+    } else {
       S.user.streak = 0;
     }
-    S.user.lastActiveDate = today;
+
+    S.user.history.push({
+      date: yesterday,
+      completedCount: completed,
+      totalCount: total,
+    });
   }
+
+  // Reset for new day
+  S.user.todayCompletions = {};
+  S.user.todayReadingPages = 0;
+  S.user.todayPointsAwarded = {};
+  S.user.todayCoinsEarned = 0;
+  S.user.lastActiveDate = today;
+  S.league.settlementDone = false;
+  S.league.daySeed = today;
+  S.league.lastUpdate = null; // allow settlement to trigger today
+  save();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1617,35 +1619,13 @@ function updateAllScores() {
 function checkSettlement() {
   const now = new Date();
   const resetHour = S.settings.resetHour;
-  // Settlement fires at resetHour, but we check if current hour >= resetHour
-  // and settlement hasn't been done yet today
-  const today = todayStr();
 
-  if (S.league.settlementDone) return null;
-  if (S.league.daySeed === today && S.league.lastUpdate) return null; // Already checked today
+  if (S.league.settlementDone) return null;   // already settled
+  if (now.getHours() < resetHour) return null; // not time yet
+  if (!S.league.lastUpdate) return null;       // no ranking data to settle
 
-  // Check if it's past settlement time
-  const nowHour = now.getHours();
-  if (nowHour < resetHour) return null; // Not time yet
-
-  // Also check: if it's a brand new day, we should do settlement for yesterday
-  // Actually, let's just check: if we haven't settled today and it's past resetHour
-  // OR if it's a new day and we need to settle yesterday
-
-  // Simpler: if daySeed has changed (new day) and settlement wasn't done
-  const leagueDay = S.league.daySeed;
-  if (leagueDay === today && S.league.lastUpdate) return null;
-  if (leagueDay === today && !S.league.lastUpdate) {
-    // First load today, need to ensure league exists
-    return null;
-  }
-
-  // If it's a new day, settle yesterday's results
-  if (leagueDay !== today && nowHour >= resetHour) {
-    return doSettlement(leagueDay);
-  }
-
-  return null;
+  // Time to settle!
+  return doSettlement(S.league.daySeed);
 }
 
 function doSettlement(forDate) {
