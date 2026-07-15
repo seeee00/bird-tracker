@@ -1,4 +1,4 @@
-const CACHE = 'bird-tracker-v1';
+const CACHE = 'bird-tracker-v2';
 const URLS = ['/', '/index.html'];
 
 self.addEventListener('install', e => {
