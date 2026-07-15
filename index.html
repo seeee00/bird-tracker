@@ -733,6 +733,18 @@ body.night::before { opacity: 0.85; }
         </div>
       </div>
 
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:700;font-size:14px;color:var(--accent);margin-bottom:4px;">🪙 树枝币</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;">
+          • 每完成一个任务：<b>+1</b><br>
+          • 每日达标（75%+）：<b>+3</b> · 全勤（100%）：<b>+5</b><br>
+          • 读完一本书：<b>+10</b><br>
+          • 晋级新等级：<b>+20</b> · 排名前30保级：<b>+5</b><br>
+          • 初始赠送：<b>100</b><br>
+          • 树枝币可在🛒商店购买装饰和虚拟食物
+        </div>
+      </div>
+
       <button class="primary-btn" onclick="hideRulesModal()">知道了</button>
     </div>
   </div>
@@ -762,6 +774,19 @@ body.night::before { opacity: 0.85; }
       <div style="flex:1;"><div style="font-size:18px;font-weight:700;color:var(--accent);" id="shop-points">0</div><div style="font-size:11px;color:var(--muted);">树枝币</div></div>
       <span style="font-size:11px;color:var(--muted);">完成任务/读书/晋级获得</span>
     </div>
+
+    <details style="margin-bottom:12px;font-size:12px;color:var(--text2);background:var(--bg-card);border-radius:var(--radius-sm);padding:10px 14px;border:1px solid var(--sep);cursor:pointer;">
+      <summary style="font-weight:600;color:var(--accent);">🪙 树枝币怎么赚？</summary>
+      <div style="margin-top:8px;line-height:1.8;">
+        • 每完成一个任务 <b>+1</b><br>
+        • 每日达标（75%以上）<b>+3</b><br>
+        • 每日全勤（100%）<b>+5</b><br>
+        • 读完一本书 <b>+10</b><br>
+        • 晋级到新等级 <b>+20</b><br>
+        • 排名前30但未晋级 <b>+5</b><br>
+        • 初始赠送 <b>100</b>
+      </div>
+    </details>
 
     <div class="section-label">🎀 小鸟装饰 <span style="font-weight:400;font-size:10px;color:var(--muted);margin-left:4px;">（点一下购买，再点装备）</span></div>
     <div id="shop-decorations" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
@@ -992,7 +1017,7 @@ function blankState() {
       longestStreak: 0,
       tier: 'earth',
       tierHistory: [],        // [{ tier, date, finalRank }]
-      points: 0,
+      points: 100,
       badges: [],
       birdName: '小灰团',
       lastActiveDate: null,
@@ -1030,7 +1055,7 @@ function load() {
       S.books = data.books || [];
       S.birdAvatars = data.birdAvatars || {};
       S.shop = data.shop || { inventory: [], equipped: null, customItems: [], itemImages: {} };
-      S.user.points = (data.user && data.user.points) || 0;
+      S.user.points = (data.user && data.user.points !== undefined) ? data.user.points : 100;
       S.user.tasks = (data.user && data.user.tasks) ? data.user.tasks : DEFAULT_TASKS.map(t=>({...t}));
       S.user.todayCompletions = (data.user && data.user.todayCompletions) || {};
       S.user.history = (data.user && data.user.history) || [];
@@ -1672,7 +1697,7 @@ function renderToday() {
   }
   document.getElementById('bird-name-display').textContent = S.user.birdName;
   const cfg = TIER_CONFIG[S.user.tier];
-  document.getElementById('bird-tier-display').textContent = `${cfg.icon} ${cfg.name}`;
+  document.getElementById('bird-tier-display').textContent = `${cfg.icon} ${cfg.name} · 🪙${S.user.points || 0}`;
 
   // Show equipped decoration
   const decoEl = document.getElementById('bird-decoration');
