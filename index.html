@@ -1310,73 +1310,19 @@ function checkBadges() {
   if (totalDone >= 50) addBadge('tasks50', '树枝上的50片叶子', '🍃');
   if (totalDone >= 100) addBadge('tasks100', '百年老树的年轮', '🪵');
 
-  // ── 🥚 Hidden easter eggs (条件保密) ──
-  const tasks = S.user.tasks.filter(t => t.enabled);
-  const total = tasks.length;
-  const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
-
-  // 压哨飞行：在23:00-23:01之间完成任务
-  const now = new Date();
-  if (now.getHours() === 23 && now.getMinutes() <= 1) {
-    const justDone = Object.values(S.user.todayCompletions || {});
-    if (justDone.length > 0) {
-      const latest = Math.max(...justDone);
-      if (now.getTime() - latest < 120000) addBadge('buzzer_beater', '压哨飞行', '⏰');
-    }
-  }
-
-  // 早鸟：全部任务在12:00前完成
-  if (done >= total && done > 0 && total > 0) {
-    const allTimes = tasks.map(t => S.user.todayCompletions[t.id]).filter(Boolean);
-    if (allTimes.length > 0 && Math.max(...allTimes) < new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0).getTime()) {
-      addBadge('early_bird', '早起的鸟儿有虫吃', '🌄');
-    }
-  }
-
-  // 书虫：单日阅读100页以上
-  if ((S.user.todayReadingPages || 0) >= 100) addBadge('bookworm', '书虫', '🐛');
-
-  // 守巢者：在同一等级停留过3次结算
-  const tierStays = (S.user.tierHistory || []).filter(h => h.result === 'stay').length;
-  if (tierStays >= 3) addBadge('nest_keeper', '守巢者', '🏠');
-
-  // 浴火重生：降级后再晋级
-  const history = S.user.tierHistory || [];
-  for (let i = 1; i < history.length; i++) {
-    if (history[i-1].result === 'demote' && history[i].result === 'promote') {
-      addBadge('phoenix', '浴火重生', '🔥');
-      break;
-    }
-  }
-
-  // 候鸟归来：离开3天以上后回归
-  if (S.user.history.length >= 1) {
-    const lastDate = S.user.history[S.user.history.length - 1].date;
-    const lastD = new Date(lastDate);
-    const todayD = new Date(todayStr());
-    const gapDays = Math.floor((todayD - lastD) / 86400000);
-    if (gapDays >= 3) addBadge('migration', '候鸟归来', '🧭');
-  }
-
-  // 啄木鸟：同一天反复完成+取消同一任务5次
-  // (这个太复杂，换一个：深夜活跃——凌晨0-4点完成3个以上任务)
-  if (now.getHours() >= 0 && now.getHours() < 4) {
-    const lateDone = tasks.filter(t => {
-      const ts = S.user.todayCompletions[t.id];
-      if (!ts) return false;
-      const d = new Date(ts);
-      return d.getHours() >= 0 && d.getHours() < 4;
-    }).length;
-    if (lateDone >= 3) addBadge('night_owl', '真正的猫头鹰', '🦉');
-  }
-
-  // 完美一周：history最近7天全部全勤
-  if (S.user.history.length >= 7) {
-    const last7 = S.user.history.slice(-7);
-    if (last7.every(h => h.completedCount >= h.totalCount && h.totalCount > 0)) {
-      addBadge('perfect_week', '完美的一周', '🌈');
-    }
-  }
+  // ── 🥚 彩蛋（以下代码已混淆，自己翻源码也看不懂，别试了）──
+  (function(){
+    var _=S.user,__=_.tasks.filter(function(t){return t.enabled}),___=__.length,____=__.filter(function(t){return _.todayCompletions[t.id]}).length;
+    var _0=new Date(),_1=_.todayCompletions||{},_2=Object.values(_1);
+    if(_0.getHours()===23&&_0.getMinutes()<=1&&_2.length>0){var _3=Math.max.apply(null,_2);if(_0.getTime()-_3<12e4)addBadge('buzzer_beater','压哨飞行','⏰');}
+    if(____>=___&&____>0&&___>0){var _4=__.map(function(t){return _1[t.id]}).filter(Boolean);if(_4.length>0&&Math.max.apply(null,_4)<new Date(_0.getFullYear(),_0.getMonth(),_0.getDate(),12,0,0).getTime())addBadge('early_bird','早起的鸟儿有虫吃','🌄');}
+    if((_.todayReadingPages||0)>=100)addBadge('bookworm','书虫','🐛');
+    var _5=(_.tierHistory||[]).filter(function(h){return h.result==='stay'}).length;if(_5>=3)addBadge('nest_keeper','守巢者','🏠');
+    var _6=_.tierHistory||[];for(var i=1;i<_6.length;i++){if(_6[i-1].result==='demote'&&_6[i].result==='promote'){addBadge('phoenix','浴火重生','🔥');break;}}
+    if(_.history.length>=1){var _7=_.history[_.history.length-1].date;var _8=Math.floor((new Date(todayStr())-new Date(_7))/864e5);if(_8>=3)addBadge('migration','候鸟归来','🧭');}
+    if(_0.getHours()>=0&&_0.getHours()<4){var _9=__.filter(function(t){var ts=_1[t.id];if(!ts)return false;var d=new Date(ts);return d.getHours()>=0&&d.getHours()<4;}).length;if(_9>=3)addBadge('night_owl','真正的猫头鹰','🦉');}
+    if(_.history.length>=7){var _a=_.history.slice(-7);if(_a.every(function(h){return h.completedCount>=h.totalCount&&h.totalCount>0}))addBadge('perfect_week','完美的一周','🌈');}
+  })();
 
   return grants;
 }
