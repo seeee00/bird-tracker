@@ -985,7 +985,8 @@ function checkDayRollover() {
     // Only record if there were tasks
     if (total > 0) {
       // Check if yesterday was a "complete" day (all tasks done)
-      const allDone = completed >= total;
+      const threshold = Math.ceil(total * 0.75); // 75%即算完成
+      const allDone = completed >= threshold;
       if (allDone) {
         S.user.streak++;
         if (S.user.streak > S.user.longestStreak) S.user.longestStreak = S.user.streak;
@@ -1345,7 +1346,8 @@ function getMadamQuote() {
   const hour = now.getHours();
   const tasks = S.user.tasks.filter(t => t.enabled);
   const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
-  const allDone = done >= tasks.length && tasks.length > 0;
+  const threshold = Math.ceil(tasks.length * 0.75);
+  const allDone = done >= threshold && tasks.length > 0;
 
   if (allDone && hour < 22) return pick(MADAM_QUOTES.task_done_early, {});
   if (allDone && hour >= 22) return pick(MADAM_QUOTES.task_done_late, {});
