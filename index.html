@@ -802,7 +802,7 @@ body.night::before { opacity: 0.85; }
         • 读完一本书 <b>+10</b><br>
         • 晋级到新等级 <b>+20</b><br>
         • 排名前30但未晋级 <b>+5</b><br>
-        • 初始赠送 <b>100</b>
+        • 初始赠送 <b>50</b>
       </div>
     </details>
 
@@ -1035,7 +1035,7 @@ function blankState() {
       longestStreak: 0,
       tier: 'earth',
       tierHistory: [],        // [{ tier, date, finalRank }]
-      points: 100,
+      points: 50,
       badges: [],
       birdName: '小灰团',
       lastActiveDate: null,
@@ -1075,9 +1075,7 @@ function load() {
       S.birdAvatars = data.birdAvatars || {};
       S.shop = data.shop || { inventory: [], equipped: null, customItems: [], itemImages: {} };
       S.customIcons = data.customIcons || {};
-      S.user.points = (data.user && data.user.points !== undefined && data.user.points !== null) ? data.user.points : 100;
-      // Migration: if points is 0 and user has history, they predate the coin system — give starter bonus
-      if (S.user.points === 0 && S.user.history && S.user.history.length > 0) S.user.points = 100;
+      S.user.points = (data.user && data.user.points !== undefined && data.user.points !== null && data.user.points > 0) ? data.user.points : 50;
       S.user.tasks = (data.user && data.user.tasks) ? data.user.tasks : DEFAULT_TASKS.map(t=>({...t}));
       S.user.todayCompletions = (data.user && data.user.todayCompletions) || {};
       S.user.history = (data.user && data.user.history) || [];
