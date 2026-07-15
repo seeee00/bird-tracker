@@ -1289,26 +1289,94 @@ function checkBadges() {
     }
   };
 
-  if (S.user.longestStreak >= 3) addBadge('streak3', '连续3天', '🔥');
-  if (S.user.longestStreak >= 7) addBadge('streak7', '连续7天', '⭐');
-  if (S.user.longestStreak >= 14) addBadge('streak14', '连续14天', '🌟');
-  if (S.user.longestStreak >= 30) addBadge('streak30', '连续30天', '💫');
+  if (S.user.longestStreak >= 3) addBadge('streak3', '抖抖羽毛', '🪶');
+  if (S.user.longestStreak >= 7) addBadge('streak7', '筑巢一周', '🪺');
+  if (S.user.longestStreak >= 14) addBadge('streak14', '候鸟初飞', '🌅');
+  if (S.user.longestStreak >= 30) addBadge('streak30', '不知疲倦的翅膀', '🪽');
 
   const tierRank = TIER_CONFIG[S.user.tier]?.rank || 1;
-  if (tierRank >= 2) addBadge('tier2', '抵达月球', '🌙');
-  if (tierRank >= 3) addBadge('tier3', '登陆火星', '🪐');
-  if (tierRank >= 4) addBadge('tier4', '穿越小行星带', '💫');
-  if (tierRank >= 5) addBadge('tier5', '抵达木星', '⭐');
-  if (tierRank >= 6) addBadge('tier6', '深空探索者', '🚀');
+  if (tierRank >= 2) addBadge('tier2', '你好，邻居', '🌙');
+  if (tierRank >= 3) addBadge('tier3', '红色尘土上的爪印', '🪐');
+  if (tierRank >= 4) addBadge('tier4', '石头缝里穿行', '☄️');
+  if (tierRank >= 5) addBadge('tier5', '风暴眼中的平静', '⭐');
+  if (tierRank >= 6) addBadge('tier6', '鸟中旅行者1号', '🌌');
 
   const doneBooks = S.books.filter(b => b.status === 'done').length;
-  if (doneBooks >= 1) addBadge('book1', '读完第一本书', '📖');
-  if (doneBooks >= 5) addBadge('book5', '读完5本书', '📚');
-  if (doneBooks >= 10) addBadge('book10', '读完10本书', '🏆');
+  if (doneBooks >= 1) addBadge('book1', '啄开第一颗坚果', '🌰');
+  if (doneBooks >= 5) addBadge('book5', '书架上的猫头鹰', '🦉');
+  if (doneBooks >= 10) addBadge('book10', '森林图书馆馆长', '🏛️');
 
   const totalDone = S.user.history.reduce((s, h) => s + h.completedCount, 0);
-  if (totalDone >= 50) addBadge('tasks50', '完成50个任务', '✅');
-  if (totalDone >= 100) addBadge('tasks100', '完成100个任务', '💯');
+  if (totalDone >= 50) addBadge('tasks50', '树枝上的50片叶子', '🍃');
+  if (totalDone >= 100) addBadge('tasks100', '百年老树的年轮', '🪵');
+
+  // ── 🥚 Hidden easter eggs (条件保密) ──
+  const tasks = S.user.tasks.filter(t => t.enabled);
+  const total = tasks.length;
+  const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
+
+  // 压哨飞行：在23:00-23:01之间完成任务
+  const now = new Date();
+  if (now.getHours() === 23 && now.getMinutes() <= 1) {
+    const justDone = Object.values(S.user.todayCompletions || {});
+    if (justDone.length > 0) {
+      const latest = Math.max(...justDone);
+      if (now.getTime() - latest < 120000) addBadge('buzzer_beater', '压哨飞行', '⏰');
+    }
+  }
+
+  // 早鸟：全部任务在12:00前完成
+  if (done >= total && done > 0 && total > 0) {
+    const allTimes = tasks.map(t => S.user.todayCompletions[t.id]).filter(Boolean);
+    if (allTimes.length > 0 && Math.max(...allTimes) < new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0).getTime()) {
+      addBadge('early_bird', '早起的鸟儿有虫吃', '🌄');
+    }
+  }
+
+  // 书虫：单日阅读100页以上
+  if ((S.user.todayReadingPages || 0) >= 100) addBadge('bookworm', '书虫', '🐛');
+
+  // 守巢者：在同一等级停留过3次结算
+  const tierStays = (S.user.tierHistory || []).filter(h => h.result === 'stay').length;
+  if (tierStays >= 3) addBadge('nest_keeper', '守巢者', '🏠');
+
+  // 浴火重生：降级后再晋级
+  const history = S.user.tierHistory || [];
+  for (let i = 1; i < history.length; i++) {
+    if (history[i-1].result === 'demote' && history[i].result === 'promote') {
+      addBadge('phoenix', '浴火重生', '🔥');
+      break;
+    }
+  }
+
+  // 候鸟归来：离开3天以上后回归
+  if (S.user.history.length >= 1) {
+    const lastDate = S.user.history[S.user.history.length - 1].date;
+    const lastD = new Date(lastDate);
+    const todayD = new Date(todayStr());
+    const gapDays = Math.floor((todayD - lastD) / 86400000);
+    if (gapDays >= 3) addBadge('migration', '候鸟归来', '🧭');
+  }
+
+  // 啄木鸟：同一天反复完成+取消同一任务5次
+  // (这个太复杂，换一个：深夜活跃——凌晨0-4点完成3个以上任务)
+  if (now.getHours() >= 0 && now.getHours() < 4) {
+    const lateDone = tasks.filter(t => {
+      const ts = S.user.todayCompletions[t.id];
+      if (!ts) return false;
+      const d = new Date(ts);
+      return d.getHours() >= 0 && d.getHours() < 4;
+    }).length;
+    if (lateDone >= 3) addBadge('night_owl', '真正的猫头鹰', '🦉');
+  }
+
+  // 完美一周：history最近7天全部全勤
+  if (S.user.history.length >= 7) {
+    const last7 = S.user.history.slice(-7);
+    if (last7.every(h => h.completedCount >= h.totalCount && h.totalCount > 0)) {
+      addBadge('perfect_week', '完美的一周', '🌈');
+    }
+  }
 
   return grants;
 }
