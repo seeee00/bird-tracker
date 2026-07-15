@@ -1473,7 +1473,7 @@ function generateBirdLeague(tier, dateStr) {
       behavior: {
         baseCR: randBetween(rng, 0.35, 0.92),
         consistency: randBetween(rng, 0.05, 0.25),
-        streakBase: Math.floor(randBetween(rng, 0, 25)),
+        streakBase: Math.floor(randBetween(rng, 0, 12)),
         timePattern: timePatterns[Math.floor(rng() * timePatterns.length)],
         trend: randBetween(rng, -0.015, 0.015),
       },
@@ -1538,10 +1538,8 @@ function calcBirdScore(bird, now) {
   const adjustedCR = clamp(bird.behavior.baseCR * progress, 0, 1);
   const completionScore = adjustedCR * 100;
 
-  // Streak: use streakBase + trend * days since epoch
-  const daysSinceEpoch = Math.floor(Date.now() / 86400000);
-  const trendEffect = bird.behavior.trend * daysSinceEpoch;
-  const streakDays = clamp(bird.behavior.streakBase + trendEffect, 0, 30);
+	  // Streak: use streakBase directly (varies per bird, regenerated on tier change)
+  const streakDays = clamp(bird.behavior.streakBase, 0, 30);
   const streakScore = Math.min(streakDays / 30, 1) * 100;
 
   // Time score
@@ -2897,9 +2895,10 @@ function init() {
 
   // Ensure league exists & has chatter (v1 migration)
 
-  // Ensure league exists & has chatter (v1 migration)
+  // Ensure league exists & has chatter (v1) & balanced streaks (v2 migration)
   const needsRegen = !S.league.users || S.league.users.length === 0
-    || (S.league.users.length > 0 && !S.league.users[0].chatter);
+    || (S.league.users.length > 0 && !S.league.users[0].chatter)
+    || (S.league.users.length > 0 && S.league.users[0].behavior.streakBase > 12);
   if (needsRegen) {
     S.league.users = generateBirdLeague(S.user.tier, todayStr());
     S.league.tier = S.user.tier;
