@@ -1075,7 +1075,9 @@ function load() {
       S.birdAvatars = data.birdAvatars || {};
       S.shop = data.shop || { inventory: [], equipped: null, customItems: [], itemImages: {} };
       S.customIcons = data.customIcons || {};
-      S.user.points = (data.user && data.user.points !== undefined) ? data.user.points : 100;
+      S.user.points = (data.user && data.user.points !== undefined && data.user.points !== null) ? data.user.points : 100;
+      // Migration: if points is 0 and user has history, they predate the coin system — give starter bonus
+      if (S.user.points === 0 && S.user.history && S.user.history.length > 0) S.user.points = 100;
       S.user.tasks = (data.user && data.user.tasks) ? data.user.tasks : DEFAULT_TASKS.map(t=>({...t}));
       S.user.todayCompletions = (data.user && data.user.todayCompletions) || {};
       S.user.history = (data.user && data.user.history) || [];
