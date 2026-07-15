@@ -1283,46 +1283,46 @@ function checkBadges() {
   const badges = S.user.badges;
   const grants = [];
 
-  const addBadge = (id, name, emoji) => {
+  const addBadge = (id, name, emoji, desc) => {
     if (!badges.find(b => b.id === id)) {
-      badges.push({ id, name, emoji, earnedAt: todayStr() });
-      grants.push({ name, emoji });
+      badges.push({ id, name, emoji, desc, earnedAt: todayStr() });
+      grants.push({ name, emoji, desc });
     }
   };
 
-  if (S.user.longestStreak >= 3) addBadge('streak3', '抖抖羽毛', '🪶');
-  if (S.user.longestStreak >= 7) addBadge('streak7', '筑巢一周', '🪺');
-  if (S.user.longestStreak >= 14) addBadge('streak14', '候鸟初飞', '🌅');
-  if (S.user.longestStreak >= 30) addBadge('streak30', '不知疲倦的翅膀', '🪽');
+  if (S.user.longestStreak >= 3) addBadge('streak3', '抖抖羽毛', '🪶', '连续3天完成75%以上任务');
+  if (S.user.longestStreak >= 7) addBadge('streak7', '筑巢一周', '🪺', '连续7天完成75%以上任务');
+  if (S.user.longestStreak >= 14) addBadge('streak14', '候鸟初飞', '🌅', '连续14天完成75%以上任务');
+  if (S.user.longestStreak >= 30) addBadge('streak30', '不知疲倦的翅膀', '🪽', '连续30天完成75%以上任务');
 
   const tierRank = TIER_CONFIG[S.user.tier]?.rank || 1;
-  if (tierRank >= 2) addBadge('tier2', '你好，邻居', '🌙');
-  if (tierRank >= 3) addBadge('tier3', '红色尘土上的爪印', '🪐');
-  if (tierRank >= 4) addBadge('tier4', '石头缝里穿行', '☄️');
-  if (tierRank >= 5) addBadge('tier5', '风暴眼中的平静', '⭐');
-  if (tierRank >= 6) addBadge('tier6', '鸟中旅行者1号', '🌌');
+  if (tierRank >= 2) addBadge('tier2', '你好，邻居', '🌙', '晋级到月球基地');
+  if (tierRank >= 3) addBadge('tier3', '红色尘土上的爪印', '🪐', '晋级到火星前哨');
+  if (tierRank >= 4) addBadge('tier4', '石头缝里穿行', '☄️', '晋级到小行星带');
+  if (tierRank >= 5) addBadge('tier5', '风暴眼中的平静', '⭐', '晋级到木星站');
+  if (tierRank >= 6) addBadge('tier6', '鸟中旅行者1号', '🌌', '晋级到深空探索');
 
   const doneBooks = S.books.filter(b => b.status === 'done').length;
-  if (doneBooks >= 1) addBadge('book1', '啄开第一颗坚果', '🌰');
-  if (doneBooks >= 5) addBadge('book5', '书架上的猫头鹰', '🦉');
-  if (doneBooks >= 10) addBadge('book10', '森林图书馆馆长', '🏛️');
+  if (doneBooks >= 1) addBadge('book1', '啄开第一颗坚果', '🌰', '读完第1本书');
+  if (doneBooks >= 5) addBadge('book5', '书架上的猫头鹰', '🦉', '读完5本书');
+  if (doneBooks >= 10) addBadge('book10', '森林图书馆馆长', '🏛️', '读完10本书');
 
   const totalDone = S.user.history.reduce((s, h) => s + h.completedCount, 0);
-  if (totalDone >= 50) addBadge('tasks50', '树枝上的50片叶子', '🍃');
-  if (totalDone >= 100) addBadge('tasks100', '百年老树的年轮', '🪵');
+  if (totalDone >= 50) addBadge('tasks50', '树枝上的50片叶子', '🍃', '累计完成50个任务');
+  if (totalDone >= 100) addBadge('tasks100', '百年老树的年轮', '🪵', '累计完成100个任务');
 
   // ── 🥚 彩蛋（以下代码已混淆，自己翻源码也看不懂，别试了）──
   (function(){
     var _=S.user,__=_.tasks.filter(function(t){return t.enabled}),___=__.length,____=__.filter(function(t){return _.todayCompletions[t.id]}).length;
     var _0=new Date(),_1=_.todayCompletions||{},_2=Object.values(_1);
-    if(_0.getHours()===23&&_0.getMinutes()<=1&&_2.length>0){var _3=Math.max.apply(null,_2);if(_0.getTime()-_3<12e4)addBadge('buzzer_beater','压哨飞行','⏰');}
-    if(____>=___&&____>0&&___>0){var _4=__.map(function(t){return _1[t.id]}).filter(Boolean);if(_4.length>0&&Math.max.apply(null,_4)<new Date(_0.getFullYear(),_0.getMonth(),_0.getDate(),12,0,0).getTime())addBadge('early_bird','早起的鸟儿有虫吃','🌄');}
-    if((_.todayReadingPages||0)>=100)addBadge('bookworm','书虫','🐛');
-    var _5=(_.tierHistory||[]).filter(function(h){return h.result==='stay'}).length;if(_5>=3)addBadge('nest_keeper','守巢者','🏠');
-    var _6=_.tierHistory||[];for(var i=1;i<_6.length;i++){if(_6[i-1].result==='demote'&&_6[i].result==='promote'){addBadge('phoenix','浴火重生','🔥');break;}}
-    if(_.history.length>=1){var _7=_.history[_.history.length-1].date;var _8=Math.floor((new Date(todayStr())-new Date(_7))/864e5);if(_8>=3)addBadge('migration','候鸟归来','🧭');}
-    if(_0.getHours()>=0&&_0.getHours()<4){var _9=__.filter(function(t){var ts=_1[t.id];if(!ts)return false;var d=new Date(ts);return d.getHours()>=0&&d.getHours()<4;}).length;if(_9>=3)addBadge('night_owl','真正的猫头鹰','🦉');}
-    if(_.history.length>=7){var _a=_.history.slice(-7);if(_a.every(function(h){return h.completedCount>=h.totalCount&&h.totalCount>0}))addBadge('perfect_week','完美的一周','🌈');}
+    if(_0.getHours()===23&&_0.getMinutes()<=1&&_2.length>0){var _3=Math.max.apply(null,_2);if(_0.getTime()-_3<12e4)addBadge('buzzer_beater','压哨飞行','⏰','23:00-23:01之间完成一个任务');}
+    if(____>=___&&____>0&&___>0){var _4=__.map(function(t){return _1[t.id]}).filter(Boolean);if(_4.length>0&&Math.max.apply(null,_4)<new Date(_0.getFullYear(),_0.getMonth(),_0.getDate(),12,0,0).getTime())addBadge('early_bird','早起的鸟儿有虫吃','🌄','全部任务在中午12:00前完成');}
+    if((_.todayReadingPages||0)>=100)addBadge('bookworm','书虫','🐛','单日阅读超过100页');
+    var _5=(_.tierHistory||[]).filter(function(h){return h.result==='stay'}).length;if(_5>=3)addBadge('nest_keeper','守巢者','🏠','在同一等级保级3次以上');
+    var _6=_.tierHistory||[];for(var i=1;i<_6.length;i++){if(_6[i-1].result==='demote'&&_6[i].result==='promote'){addBadge('phoenix','浴火重生','🔥','降级后再次晋级');break;}}
+    if(_.history.length>=1){var _7=_.history[_.history.length-1].date;var _8=Math.floor((new Date(todayStr())-new Date(_7))/864e5);if(_8>=3)addBadge('migration','候鸟归来','🧭','离开3天以上后重新回来打卡');}
+    if(_0.getHours()>=0&&_0.getHours()<4){var _9=__.filter(function(t){var ts=_1[t.id];if(!ts)return false;var d=new Date(ts);return d.getHours()>=0&&d.getHours()<4;}).length;if(_9>=3)addBadge('night_owl','真正的猫头鹰','🦉','凌晨0-4点完成3个以上任务');}
+    if(_.history.length>=7){var _a=_.history.slice(-7);if(_a.every(function(h){return h.completedCount>=h.totalCount&&h.totalCount>0}))addBadge('perfect_week','完美的一周','🌈','连续7天全部任务100%完成');}
   })();
 
   return grants;
@@ -1617,7 +1617,7 @@ function renderBadges() {
     return;
   }
   el.innerHTML = S.user.badges.map(b =>
-    `<span style="font-size:13px;padding:6px 10px;background:var(--bg-card);border-radius:10px;display:flex;align-items:center;gap:5px;" title="${b.earnedAt}">${b.emoji} ${b.name}</span>`
+    `<span style="font-size:13px;padding:6px 10px;background:var(--bg-card);border-radius:10px;display:flex;align-items:center;gap:5px;" title="${b.desc || ''} · ${b.earnedAt}">${b.emoji} ${b.name}</span>`
   ).join('');
 }
 
@@ -2335,7 +2335,7 @@ function init() {
 
   // Check badges on init
   const newBadges = checkBadges();
-  newBadges.forEach(b => toast(`${b.emoji} 解锁徽章: ${b.name}`, 'promo'));
+  newBadges.forEach(b => toast(`${b.emoji} ${b.name}\n${b.desc || ''}`, 'promo'));
 
   renderAll();
 
