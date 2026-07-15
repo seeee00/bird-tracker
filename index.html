@@ -1048,12 +1048,12 @@ function blankState() {
       longestStreak: 0,
       tier: 'earth',
       tierHistory: [],        // [{ tier, date, finalRank }]
-      points: 50,
       badges: [],
+      points: 50,
       birdName: '小灰团',
       lastActiveDate: null,
       todayReadingPages: 0,
-      points: 0,
+      todayPointsAwarded: {},
     },
     books: [],
     birdAvatars: {},
@@ -1403,9 +1403,10 @@ function checkDayRollover() {
       });
     }
 
-    // Reset today's completions and reading pages
+    // Reset today's completions, reading pages, and coin awards
     S.user.todayCompletions = {};
     S.user.todayReadingPages = 0;
+    S.user.todayPointsAwarded = {};
     S.user.lastActiveDate = today;
 
     // Reset settlement flag for new day
@@ -1912,9 +1913,16 @@ function getNextUpdateText() {
 
 function toggleTask(taskId) {
   if (S.user.todayCompletions[taskId]) {
+    // Uncompleting: remove completion but keep the coin (can't take it back)
     delete S.user.todayCompletions[taskId];
   } else {
     S.user.todayCompletions[taskId] = Date.now();
+    // Award coin only once per task per day
+    if (!S.user.todayPointsAwarded) S.user.todayPointsAwarded = {};
+    if (!S.user.todayPointsAwarded[taskId]) {
+      addPoints(1, '完成任务');
+      S.user.todayPointsAwarded[taskId] = true;
+    }
   }
 
   // Bounce bird
@@ -1924,7 +1932,6 @@ function toggleTask(taskId) {
   bird.classList.add('bounce');
 
   save();
-  addPoints(1, '完成任务'); // +1 per task
   renderToday();
 
   // Toast on first completion of the day
