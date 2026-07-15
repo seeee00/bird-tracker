@@ -491,6 +491,16 @@ body.night::before { opacity: 0.85; }
 }
 .inv-item.equipped { border-color: var(--accent); box-shadow: 0 0 6px var(--glow); }
 .inv-item img { width: 32px; height: 32px; object-fit: contain; border-radius: 4px; }
+
+.shop-edit-btn {
+  position: absolute; top: 4px; right: 4px;
+  width: 22px; height: 22px; border-radius: 50%; border: none;
+  background: var(--bg-input); font-size: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .15s;
+}
+.shop-item { position: relative; }
+.shop-item:hover .shop-edit-btn { opacity: 1; }
 </style>
 </head>
 <body>
@@ -739,6 +749,7 @@ body.night::before { opacity: 0.85; }
 
   <!-- Hidden file input for bird avatars -->
   <input type="file" id="bird-avatar-upload" accept="image/*" class="hidden" onchange="onBirdAvatarUpload(event)">
+  <input type="file" id="item-image-upload" accept="image/*" class="hidden" onchange="onItemImageUpload(event)">
 
   <!-- ════════════════════════════════════════════════════
        Screen 6: 商店 (Bird Shop)
@@ -990,7 +1001,7 @@ function blankState() {
     },
     books: [],
     birdAvatars: {},
-    shop: { inventory: [], equipped: null, customItems: [] },
+    shop: { inventory: [], equipped: null, customItems: [], itemImages: {} },
     league: {
       tier: 'earth',
       users: [],              // 100 birds, regenerated on settlement
@@ -1018,7 +1029,7 @@ function load() {
       S.settings = Object.assign(blankState().settings, data.settings || {});
       S.books = data.books || [];
       S.birdAvatars = data.birdAvatars || {};
-      S.shop = data.shop || { inventory: [], equipped: null, customItems: [] };
+      S.shop = data.shop || { inventory: [], equipped: null, customItems: [], itemImages: {} };
       S.user.points = (data.user && data.user.points) || 0;
       S.user.tasks = (data.user && data.user.tasks) ? data.user.tasks : DEFAULT_TASKS.map(t=>({...t}));
       S.user.todayCompletions = (data.user && data.user.todayCompletions) || {};
@@ -1071,10 +1082,12 @@ function addPoints(amount, reason) {
 }
 
 function renderShop() {
-  if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[] };
+  if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[], itemImages:{} };
+  if (!S.shop.itemImages) S.shop.itemImages = {};
   if (!S.user.points) S.user.points = 0;
   const inv = S.shop.inventory || [];
   const eq = S.shop.equipped;
+  const imgs = S.shop.itemImages || {};
 
   document.getElementById('shop-points').textContent = S.user.points;
 
@@ -1087,8 +1100,9 @@ function renderShop() {
       let cls = 'shop-item';
       if (isEq) cls += ' equipped';
       else if (owned) cls += ' owned';
-      const imgHtml = it.image
-        ? `<div class="si-img"><img src="${it.image}" alt=""></div>`
+      const customImg = it.image || imgs[it.id];
+      const imgHtml = customImg
+        ? `<div class="si-img"><img src="${customImg}" alt=""></div>`
         : `<div class="si-img">${it.emoji || '📦'}</div>`;
       const action = owned ? (isEq ? '已装备' : '点我装备') : `${it.price}🪙 购买`;
       return `<div class="${cls}" onclick="shopAction('${it.id}')">
@@ -1096,6 +1110,7 @@ function renderShop() {
         <div class="si-name">${escHtml(it.name)}</div>
         <div class="si-price">${action}</div>
         ${owned ? '<div class="si-owned">✓ 已拥有</div>' : ''}
+        <button class="shop-edit-btn" onclick="event.stopPropagation();replaceItemImage('${it.id}')" title="换图标">🖌️</button>
       </div>`;
     }).join('');
   };
@@ -1183,6 +1198,39 @@ function previewCustomItem(event) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+let _pendingItemId = null;
+function replaceItemImage(itemId) {
+  _pendingItemId = itemId;
+  document.getElementById('item-image-upload').click();
+}
+
+function onItemImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file || !_pendingItemId) return;
+  if (file.size > 100 * 1024) { toast('图片太大了，100KB以内吧', 'info'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 80; canvas.height = 80;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 80, 80);
+      ctx.drawImage(img, 0, 0, 80, 80);
+      if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[], itemImages:{} };
+      if (!S.shop.itemImages) S.shop.itemImages = {};
+      S.shop.itemImages[_pendingItemId] = canvas.toDataURL('image/png');
+      save();
+      renderShop();
+      toast('🖌️ 图标已更新！', 'promo');
+      _pendingItemId = null;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
 }
 
 function addCustomItem() {
@@ -1633,8 +1681,9 @@ function renderToday() {
       const allItems = [...DEFAULT_SHOP_ITEMS, ...(S.shop.customItems || [])];
       const eqItem = allItems.find(i => i.id === S.shop.equipped);
       if (eqItem) {
-        decoEl.innerHTML = eqItem.image
-          ? `<img src="${eqItem.image}" style="width:20px;height:20px;object-fit:contain;">`
+        const decoImg = eqItem.image || (S.shop.itemImages || {})[eqItem.id];
+        decoEl.innerHTML = decoImg
+          ? `<img src="${decoImg}" style="width:20px;height:20px;object-fit:contain;">`
           : eqItem.emoji;
         decoEl.style.display = 'flex';
       } else { decoEl.style.display = 'none'; }
