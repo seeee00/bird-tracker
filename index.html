@@ -1645,7 +1645,7 @@ function checkGrandSettlement() {
   if (!S.league.cycleStart) S.league.cycleStart = todayStr();
   const daysSince = Math.floor((new Date(todayStr()) - new Date(S.league.cycleStart)) / 86400000);
   if (daysSince < 14) return null;
-  if (!S.league.dailyRanks || S.league.dailyRanks.length === 0) return null;
+  if (!S.league.dailyRanks || S.league.dailyRanks.length < 10) return null; // 至少参与10天
 
   // Average rank over the cycle
   const ranks = S.league.dailyRanks.map(r => r.rank);
