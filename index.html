@@ -623,6 +623,22 @@ body.night::before { opacity: 0.85; }
   <div class="screen" id="screen-settings">
     <div class="screen-header"><h2 style="font-size:22px;font-weight:700;">⚙️ 设置</h2></div>
 
+    <div class="section-label" style="margin-top:8px;">🎨 图标管理 <span style="font-weight:400;font-size:10px;color:var(--muted);">（你画好图，这里上传替换）</span></div>
+
+    <div class="setting-row">
+      <div><div class="setting-label">📱 App图标</div><div class="setting-desc">手机主屏幕图标（512×512 PNG）</div></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div id="app-icon-preview" style="width:36px;height:36px;border-radius:8px;background:var(--bg-input);overflow:hidden;flex-shrink:0;"><img src="icons/icon.svg" style="width:100%;height:100%;object-fit:cover;"></div>
+        <button class="outline-btn" onclick="document.getElementById('app-icon-upload').click()" style="font-size:11px;padding:5px 10px;">上传</button>
+        <input type="file" id="app-icon-upload" accept="image/*" class="hidden" onchange="uploadAppIcon(event)">
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div><div class="setting-label">🔽 底栏图标</div><div class="setting-desc">底部导航6个按钮（建议48×48 PNG，透明底）</div></div>
+    </div>
+    <div id="nav-icon-editor" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+
     <div class="setting-row">
       <div><div class="setting-label">小鸟头像</div><div class="setting-desc">上传自己的小鸟照片替代emoji</div></div>
       <div style="display:flex;align-items:center;gap:8px;">
@@ -762,6 +778,8 @@ body.night::before { opacity: 0.85; }
   <!-- Hidden file input for bird avatars -->
   <input type="file" id="bird-avatar-upload" accept="image/*" class="hidden" onchange="onBirdAvatarUpload(event)">
   <input type="file" id="item-image-upload" accept="image/*" class="hidden" onchange="onItemImageUpload(event)">
+  <input type="file" id="nav-icon-upload" accept="image/*" class="hidden" onchange="uploadNavIcon(event)">
+  <input type="file" id="app-icon-upload" accept="image/*" class="hidden" onchange="uploadAppIcon(event)">
 
   <!-- ════════════════════════════════════════════════════
        Screen 6: 商店 (Bird Shop)
@@ -1027,6 +1045,7 @@ function blankState() {
     books: [],
     birdAvatars: {},
     shop: { inventory: [], equipped: null, customItems: [], itemImages: {} },
+    customIcons: {},
     league: {
       tier: 'earth',
       users: [],              // 100 birds, regenerated on settlement
@@ -1055,6 +1074,7 @@ function load() {
       S.books = data.books || [];
       S.birdAvatars = data.birdAvatars || {};
       S.shop = data.shop || { inventory: [], equipped: null, customItems: [], itemImages: {} };
+      S.customIcons = data.customIcons || {};
       S.user.points = (data.user && data.user.points !== undefined) ? data.user.points : 100;
       S.user.tasks = (data.user && data.user.tasks) ? data.user.tasks : DEFAULT_TASKS.map(t=>({...t}));
       S.user.todayCompletions = (data.user && data.user.todayCompletions) || {};
@@ -2203,6 +2223,16 @@ function renderSettings() {
       preview.textContent = getBirdEmoji();
     }
   }
+  // App icon preview
+  const appPrev = document.getElementById('app-icon-preview');
+  if (appPrev) {
+    if (S.customIcons?.app) {
+      appPrev.innerHTML = `<img src="${S.customIcons.app}" style="width:100%;height:100%;object-fit:cover;">`;
+    } else {
+      appPrev.innerHTML = '<img src="icons/icon.svg" style="width:100%;height:100%;object-fit:cover;">';
+    }
+  }
+  renderNavIconEditor();
 }
 
 function updateBirdName() {
@@ -2243,6 +2273,159 @@ function uploadAvatar(event) {
   };
   reader.readAsDataURL(file);
   event.target.value = '';
+}
+
+// ── Icon management ──
+const NAV_ICONS = [
+  { key:'today', label:'今日', emoji:'🏠' },
+  { key:'stats', label:'统计', emoji:'📊' },
+  { key:'books', label:'书架', emoji:'📚' },
+  { key:'shop',  label:'商店', emoji:'🛒' },
+  { key:'tasks-mgmt', label:'任务', emoji:'📋' },
+  { key:'settings', label:'设置', emoji:'⚙️' },
+];
+
+function renderNavIconEditor() {
+  if (!S.customIcons) S.customIcons = {};
+  const el = document.getElementById('nav-icon-editor');
+  el.innerHTML = NAV_ICONS.map(n => {
+    const custom = S.customIcons['nav_' + n.key];
+    return `<div style="text-align:center;padding:8px;background:var(--bg-card);border-radius:var(--radius-xs);border:1px solid var(--sep);">
+      <div style="width:32px;height:32px;margin:0 auto 4px;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--bg-input);">
+        ${custom ? `<img src="${custom}" style="width:100%;height:100%;object-fit:contain;">` : n.emoji}
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">${n.label}</div>
+      <button class="outline-btn" onclick="document.getElementById('nav-icon-upload').dataset.key='nav_${n.key}';document.getElementById('nav-icon-upload').click()" style="font-size:10px;padding:3px 8px;">换</button>
+    </div>`;
+  }).join('');
+}
+
+let _navIconKey = null;
+function uploadNavIcon(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const key = document.getElementById('nav-icon-upload').dataset.key;
+  if (!key) return;
+  if (file.size > 50 * 1024) { toast('图片太大了，50KB以内吧', 'info'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 96; canvas.height = 96;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 96, 96);
+      ctx.drawImage(img, 0, 0, 96, 96);
+      if (!S.customIcons) S.customIcons = {};
+      S.customIcons[key] = canvas.toDataURL('image/png');
+      save();
+      renderNavIconEditor();
+      updateNavIcons();
+      toast('图标已更新', 'promo');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function updateNavIcons() {
+  if (!S.customIcons) S.customIcons = {};
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    const key = 'nav_' + btn.dataset.screen;
+    const custom = S.customIcons[key];
+    const iconEl = btn.querySelector('.nav-icon');
+    if (iconEl) {
+      if (custom) {
+        iconEl.innerHTML = `<img src="${custom}" style="width:24px;height:24px;object-fit:contain;">`;
+      } else {
+        const def = NAV_ICONS.find(n => 'nav_' + n.key === key);
+        iconEl.textContent = def ? def.emoji : '';
+      }
+    }
+  });
+}
+
+function uploadAppIcon(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 300 * 1024) { toast('图片太大了，300KB以内吧', 'info'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      // Generate 512x512 icon
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      // Fill with green bg first
+      ctx.fillStyle = '#5a8a3c';
+      ctx.fillRect(0, 0, 512, 512);
+      // Draw image centered, maintaining aspect ratio
+      const scale = Math.min(400 / img.width, 400 / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (512-w)/2, (512-h)/2, w, h);
+
+      // Store and update
+      if (!S.customIcons) S.customIcons = {};
+      S.customIcons.app = canvas.toDataURL('image/png');
+
+      // Update preview
+      document.getElementById('app-icon-preview').innerHTML = `<img src="${S.customIcons.app}" style="width:100%;height:100%;object-fit:cover;">`;
+
+      // Update manifest link dynamically with blob
+      updateAppIconLive();
+      save();
+      toast('📱 App图标已更新！手机需重新添加主屏幕', 'promo');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function updateAppIconLive() {
+  if (!S.customIcons?.app) return;
+  // Update apple-touch-icon via blob
+  const blob = dataURLtoBlob(S.customIcons.app);
+  const url = URL.createObjectURL(blob);
+  let link = document.querySelector('link[rel="apple-touch-icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'apple-touch-icon';
+    document.head.appendChild(link);
+  }
+  link.href = url;
+
+  // Also update the SVG icon by writing to it via canvas
+  // (manifest still references icon.svg - we update it in memory)
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  // Generate the icon SVG dynamically
+  generateDynamicIcon();
+}
+
+function generateDynamicIcon() {
+  if (!S.customIcons?.app) return;
+  // Create an inline manifest with blob URL
+  const iconBlob = dataURLtoBlob(S.customIcons.app);
+  const iconUrl = URL.createObjectURL(iconBlob);
+  let manifestLink = document.querySelector('link[rel="manifest"]');
+  if (manifestLink) {
+    // We can't easily update manifest href, but we can write icon to localStorage
+    // and the existing manifest.json reference will still work
+    // Store the icon data for the service worker to handle
+    try { localStorage.setItem('bird-custom-icon', S.customIcons.app); } catch(e) {}
+  }
+}
+
+function dataURLtoBlob(dataurl) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  const n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+  return new Blob([u8arr], { type: mime });
 }
 
 function removeAvatar() {
@@ -2680,6 +2863,10 @@ function init() {
   newBadges.forEach(b => toast(`${b.emoji} ${b.name}\n${b.desc || ''}`, 'promo'));
 
   renderAll();
+  updateNavIcons();
+
+  // Restore app icon if custom
+  if (S.customIcons?.app) updateAppIconLive();
 
   // Setup nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn => {
