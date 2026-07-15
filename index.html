@@ -1068,6 +1068,8 @@ function blankState() {
       lastUpdate: null,       // timestamp of last ranking update
       daySeed: todayStr(),
       settlementDone: false,
+      cycleStart: todayStr(),
+      dailyRanks: [],
     },
     settings: {
       resetHour: 23,
@@ -1100,6 +1102,8 @@ function load() {
       S.league.users = S.league.users || [];
       S.league.daySeed = S.league.daySeed || todayStr();
       S.league.settlementDone = S.league.settlementDone || false;
+      S.league.cycleStart = S.league.cycleStart || todayStr();
+      S.league.dailyRanks = S.league.dailyRanks || [];
     }
   } catch(e) { console.warn('Load failed:', e); }
 }
@@ -1394,10 +1398,10 @@ function checkDayRollover() {
   if (S.user.lastActiveDate === today) return;
 
   // ── Day changed! Archive yesterday ──
-  // First: catch up missed settlement from yesterday
+  // First: catch up missed daily settlement from yesterday
   const nowH = new Date().getHours();
   if (S.league.daySeed === S.user.lastActiveDate && S.league.lastUpdate && !S.league.settlementDone && nowH >= S.settings.resetHour) {
-    doSettlement(S.user.lastActiveDate);
+    checkDailySettlement();
   }
 
   const yesterday = S.user.lastActiveDate;
@@ -1614,30 +1618,47 @@ function updateAllScores() {
    SETTLEMENT
    ═══════════════════════════════════════════════════════════════════════════ */
 
-function checkSettlement() {
+// ── 每日小结算（23:00）：记录排名 + 小额奖励，不升降级 ──
+function checkDailySettlement() {
   const now = new Date();
-  const resetHour = S.settings.resetHour;
+  if (S.league.settlementDone) return null;
+  if (now.getHours() < S.settings.resetHour) return null;
+  if (!S.league.lastUpdate) return null;
 
-  if (S.league.settlementDone) return null;   // already settled
-  if (now.getHours() < resetHour) return null; // not time yet
-  if (!S.league.lastUpdate) return null;       // no ranking data to settle
+  const { userRank } = updateAllScores();
 
-  // Time to settle!
-  return doSettlement(S.league.daySeed);
+  // Record today's rank
+  if (!S.league.dailyRanks) S.league.dailyRanks = [];
+  S.league.dailyRanks.push({ date: S.league.daySeed, rank: userRank });
+
+  // Daily rewards
+  if (userRank <= 10) addPoints(4, '日排名前10');
+  else if (userRank <= 30) addPoints(2, '日排名前30');
+
+  S.league.settlementDone = true;
+  save();
+  return { type: 'daily', userRank };
 }
 
-function doSettlement(forDate) {
-  const { userRank } = updateAllScores();
+// ── 两周大结算：平均排名决胜负，升降级 ──
+function checkGrandSettlement() {
+  if (!S.league.cycleStart) S.league.cycleStart = todayStr();
+  const daysSince = Math.floor((new Date(todayStr()) - new Date(S.league.cycleStart)) / 86400000);
+  if (daysSince < 14) return null;
+  if (!S.league.dailyRanks || S.league.dailyRanks.length === 0) return null;
+
+  // Average rank over the cycle
+  const ranks = S.league.dailyRanks.map(r => r.rank);
+  const avgRank = Math.round(ranks.reduce((a,b) => a+b, 0) / ranks.length);
 
   let newTier = S.user.tier;
   let result;
-
-  if (userRank <= 10) {
+  if (avgRank <= 10) {
     result = 'promote';
     const tiers = Object.keys(TIER_CONFIG);
     const idx = tiers.indexOf(S.user.tier);
     if (idx < tiers.length - 1) newTier = tiers[idx + 1];
-  } else if (userRank <= 70) {
+  } else if (avgRank <= 70) {
     result = 'stay';
   } else {
     result = 'demote';
@@ -1648,25 +1669,23 @@ function doSettlement(forDate) {
 
   const oldTier = S.user.tier;
   S.user.tier = newTier;
-  S.user.tierHistory.push({ tier: newTier, date: forDate, finalRank: userRank, result });
+  S.user.tierHistory.push({ tier: newTier, date: todayStr(), finalRank: avgRank, result });
 
-  // Award points
-  if (result === 'promote') addPoints(20, '晋级奖励');
-  else if (result === 'stay' && userRank <= 30) addPoints(5, '排名靠前');
+  if (result === 'promote') addPoints(20, '大结算晋级');
+  else if (result === 'stay' && avgRank <= 20) addPoints(10, '大结算稳定');
 
-  // Generate new league for new tier
+  // New league, new cycle
   const today = todayStr();
   S.league.tier = newTier;
   S.league.users = generateBirdLeague(newTier, today);
   S.league.daySeed = today;
   S.league.settlementDone = true;
   S.league.lastUpdate = Date.now();
-
-  // Check badges
+  S.league.cycleStart = today;
+  S.league.dailyRanks = [];
   checkBadges();
-
   save();
-  return { result, oldTier, newTier, userRank };
+  return { type: 'grand', result, oldTier, newTier, avgRank };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1777,7 +1796,11 @@ function renderToday() {
   }
   document.getElementById('bird-name-display').textContent = S.user.birdName;
   const cfg = TIER_CONFIG[S.user.tier];
-  document.getElementById('bird-tier-display').textContent = `${cfg.icon} ${cfg.name} · 🪙${S.user.points || 0}`;
+  // Cycle day countdown
+  if (!S.league.cycleStart) S.league.cycleStart = todayStr();
+  const cycleDay = Math.floor((new Date(todayStr()) - new Date(S.league.cycleStart)) / 86400000) + 1;
+  const daysLeft = 14 - cycleDay;
+  document.getElementById('bird-tier-display').textContent = `${cfg.icon} ${cfg.name} · 🪙${S.user.points || 0} · 📅第${cycleDay}天${daysLeft > 0 ? '(' + daysLeft + '天后大结算)' : '(今天结算!)'}`;
 
   // Show equipped decoration
   const decoEl = document.getElementById('bird-decoration');
@@ -2906,18 +2929,21 @@ function init() {
     save();
   }
 
-  // Check if league needs regeneration (new day, past settlement)
-  const settlementResult = checkSettlement();
-  if (settlementResult) {
-    // Show settlement toast
-    const { result, newTier, userRank } = settlementResult;
-    const cfg = TIER_CONFIG[newTier];
-    if (result === 'promote') {
-      toast(`🚀 晋级！${cfg.icon} ${cfg.name} — 排名 #${userRank}`, 'promo');
-    } else if (result === 'demote') {
-      toast(`⬇️ 降级至 ${cfg.icon} ${cfg.name} — 排名 #${userRank}`, 'demo');
+  // Run daily settlement if past time
+  const dailyResult = checkDailySettlement();
+  if (dailyResult) {
+    toast(`📊 今日排名 #${dailyResult.userRank} · +${dailyResult.userRank <= 10 ? 4 : dailyResult.userRank <= 30 ? 2 : 0}🪙`, 'info');
+  }
+  // Run grand settlement if 14 days passed
+  const grandResult = checkGrandSettlement();
+  if (grandResult) {
+    const cfg = TIER_CONFIG[grandResult.newTier];
+    if (grandResult.result === 'promote') {
+      toast(`🚀 两周大结算晋级！${cfg.icon} ${cfg.name} · 均排 #${grandResult.avgRank}`, 'promo');
+    } else if (grandResult.result === 'demote') {
+      toast(`⬇️ 大结算降级至 ${cfg.icon} ${cfg.name} · 均排 #${grandResult.avgRank}`, 'demo');
     } else {
-      toast(`➡️ 保持在 ${cfg.icon} ${cfg.name} — 排名 #${userRank}`, 'info');
+      toast(`➡️ 大结算保级 ${cfg.icon} ${cfg.name} · 均排 #${grandResult.avgRank}`, 'info');
     }
   }
 
@@ -2951,21 +2977,25 @@ function init() {
     this.classList.add('bounce');
   });
 
-  // Periodic check for settlement
+  // Periodic check for settlements
   setInterval(() => {
-    const result = checkSettlement();
-    if (result) {
-      const cfg = TIER_CONFIG[result.newTier];
-      if (result.result === 'promote') {
-        toast(`🚀 晋级！${cfg.icon} ${cfg.name}`, 'promo');
-      } else if (result.result === 'demote') {
-        toast(`⬇️ 降级至 ${cfg.icon} ${cfg.name}`, 'demo');
+    const daily = checkDailySettlement();
+    if (daily) {
+      toast(`📊 今日排名 #${daily.userRank}`, 'info');
+      renderToday();
+    }
+    const grand = checkGrandSettlement();
+    if (grand) {
+      const cfg = TIER_CONFIG[grand.newTier];
+      if (grand.result === 'promote') {
+        toast(`🚀 两周大结算！${cfg.icon} ${cfg.name}`, 'promo');
+      } else if (grand.result === 'demote') {
+        toast(`⬇️ 大结算降级至 ${cfg.icon} ${cfg.name}`, 'demo');
       }
       renderToday();
     }
-    // Also update scores periodically
     renderToday();
-  }, 60000); // Check every minute
+  }, 60000);
 
   // Hourly rank update (at checkpoint boundaries)
   checkRankUpdateTimer();
