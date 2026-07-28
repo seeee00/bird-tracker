@@ -831,7 +831,7 @@ body.night::before { opacity: 0.85; }
        Screen 6: 商店 (Bird Shop)
        ════════════════════════════════════════════════════ -->
   <div class="screen" id="screen-shop">
-    <div class="screen-header"><h2 style="font-size:22px;font-weight:700;">🛒 小鸟商店</h2></div>
+    <div class="screen-header"><h2 style="font-size:22px;font-weight:700;" id="shop-title">🛒 小鸟商店</h2></div>
 
     <!-- Shopkeeper -->
     <div style="display:flex;gap:12px;background:var(--bg-card);border-radius:var(--radius);padding:14px;margin-bottom:14px;border:1px solid var(--sep);align-items:center;">
@@ -1250,6 +1250,17 @@ let ACTIVE_CHATTER = BIRD_CHATTER;
 let ACTIVE_QUOTES = MADAM_QUOTES;
 let ACTIVE_SOUP = MADAM_QUOTES.bird_soup;
 
+// ── Theme-aware label helpers ──
+function tCoin() { return S.settings.theme === 'hogwarts' ? '加隆' : '树枝币'; }
+function tScore() { return S.settings.theme === 'hogwarts' ? '学院分' : '树枝'; }
+function tShop() { return S.settings.theme === 'hogwarts' ? '🛒 对角巷' : '🛒 小鸟商店'; }
+function tRank() { return S.settings.theme === 'hogwarts' ? '🏆 学院排名' : '🏆 小鸟排名'; }
+function tBird() { return S.settings.theme === 'hogwarts' ? '巫师' : '小鸟'; }
+function tApp() { return S.settings.theme === 'hogwarts' ? '霍格沃茨追踪器 v1.0' : '小鸟生存追踪器 v1.0'; }
+function tMadam() { return S.settings.theme === 'hogwarts' ? '麦格教授' : 'Madam'; }
+function tSoup() { return S.settings.theme === 'hogwarts' ? '🕯️ 邓布利多说' : '🐦 小鸟说'; }
+function tRules() { return S.settings.theme === 'hogwarts' ? '📖 霍格沃茨校规' : '📖 森林生存指南'; }
+
 function applyTheme() {
   const hp = S.settings.theme === 'hogwarts';
   ACTIVE_TIER = hp ? HP_TIER_CONFIG : TIER_CONFIG;
@@ -1442,7 +1453,7 @@ function shopAction(itemId) {
   } else {
     // Buy
     if ((S.user.points || 0) < it.price) {
-      toast('树枝币不够哦 🪙', 'info');
+      toast(tCoin() + '不够哦 🪙', 'info');
       return;
     }
     S.user.points -= it.price;
@@ -2927,14 +2938,20 @@ async function birdChatClick(birdId, birdName, birdMood, birdRank, userRank) {
 const _aiBirdCache = {};
 
 async function aiBirdRoast(birdName, birdMood, birdRank, userRank) {
-  const cacheKey = `${birdName}_${todayStr()}`;
+  const cacheKey = `${birdName}_${S.settings.theme}_${todayStr()}`;
   if (_aiBirdCache[cacheKey]) return _aiBirdCache[cacheKey];
-
   const tasks = S.user.tasks.filter(t => t.enabled);
   const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
+  const hp = S.settings.theme === 'hogwarts';
+  const sysPrompt = hp
+    ? `你是霍格沃茨魔法世界的"${birdName}"，性格${birdMood}。你和其他巫师/魔法生物一起参加学院排名赛。有一个麻瓜也在排名里。请用"${birdName}"的口吻说一句毒舌/吐槽的话，15字以内，要符合原著人设和性格。可以刻薄、可以讽刺、可以傲娇——但要有魔法世界的感觉。`
+    : `你是一只叫"${birdName}"的小鸟，你的性格是${birdMood}。你和其他小鸟一起参加森林生存排名赛。有一个人类也在排名里，她叫"${S.user.birdName}"。请根据"${birdName}"这种鸟的刻板印象和天性，用小鸟视角说一句可爱/有趣/符合鸟设的话。15字以内，要有拟声词。温暖有趣为主。`;
+  const userPrompt = hp
+    ? `我今天完成了${done}/${tasks.length}项课程，排名#${userRank}，${birdName}排名#${birdRank}。对我说一句。`
+    : `我今天的任务完成了${done}/${tasks.length}，排名#${userRank}，你这只${birdName}排名#${birdRank}。对我说一句话。`;
   const msg = await callDeepSeek([
-    { role: 'system', content: `你是一只叫"${birdName}"的小鸟，你的性格是${birdMood}。你和其他小鸟一起参加森林生存排名赛。有一个人类也在排名里，她叫"${S.user.birdName}"。请根据"${birdName}"这种鸟的刻板印象和天性，用小鸟视角说一句可爱/有趣/符合鸟设的话。15字以内，要有拟声词（呱、啾、嘎、咕之类的）。温暖有趣为主，不要太刻薄。` },
-    { role: 'user', content: `我今天的任务完成了${done}/${tasks.length}，排名#${userRank}，你这只${birdName}排名#${birdRank}。对我说一句话。` },
+    { role: 'system', content: sysPrompt },
+    { role: 'user', content: userPrompt },
   ], 60);
   _aiBirdCache[cacheKey] = msg;
   return msg;
@@ -3043,8 +3060,10 @@ async function showBirdProfile(birdName, birdScore, birdRank) {
   if (aiEnabled() && !_birdProfileCache[birdName]) {
     try {
       const taskList = await callDeepSeek([
-        { role: 'system', content: `你是一只叫"${birdName}"的森林小鸟，性格${chatter.mood}。列出你今天的5个日常任务。每行一个，格式："☐ 任务描述"。任务要符合${birdName}这种鸟的天性和刻板印象。比如猫头鹰的任务可能是"白天补觉""半夜站岗"，企鹅可能是"冰上滑行""抓鱼"。不需要完成状态，只列任务。` },
-        { role: 'user', content: '列出你今天要做的5件事。' },
+        { role: 'system', content: S.settings.theme === 'hogwarts'
+          ? `你是霍格沃茨魔法世界的"${birdName}"，性格${chatter.mood}。列出你今天在霍格沃茨的5件日常。每行一个，格式："☐ 任务描述"。要符合原著人设和魔法世界日常生活。比如哈利可能是"☐ 魁地奇训练""☐ 试图不被斯内普扣分"，赫敏可能是"☐ 多读三章《霍格沃茨：一段校史》""☐ 帮纳威纠正魔咒发音"，德拉科可能是"☐ 照镜子""☐ 提醒别人我爸爸是谁"。不需要完成状态，只列任务。`
+          : `你是一只叫"${birdName}"的森林小鸟，性格${chatter.mood}。列出你今天的5个日常任务。每行一个，格式："☐ 任务描述"。任务要符合${birdName}这种鸟的天性和刻板印象。比如猫头鹰的任务可能是"白天补觉""半夜站岗"，企鹅可能是"冰上滑行""抓鱼"。不需要完成状态，只列任务。` },
+        { role: 'user', content: S.settings.theme === 'hogwarts' ? '列出你今天在霍格沃茨要做的5件事。' : '列出你今天要做的5件事。' },
       ], 150);
       _birdProfileCache[birdName] = taskList;
     } catch(e) { /* fall through to template */ }
