@@ -209,9 +209,9 @@ body.night::before { opacity: 0.85; }
   font-size: 13px; color: var(--text2);
   line-height: 1.55; font-style: italic;
 }
-.madam-card::before { content: 'Madam: '; font-weight: 600; font-style: normal; color: var(--accent); }
+.madam-card::before { content: var(--madam-label, 'Madam：'); font-weight: 600; font-style: normal; color: var(--accent); }
 
-/* ── Bird soup card (gentle, warm) ── */
+/* ── Soup card (gentle, warm) ── */
 .soup-card {
   background: linear-gradient(135deg, rgba(180,150,100,0.06), rgba(180,150,100,0.02));
   border-left: 3px solid var(--accent2);
@@ -220,7 +220,7 @@ body.night::before { opacity: 0.85; }
   font-size: 13px; color: var(--text2); line-height: 1.6; font-style: italic;
   opacity: 0.85;
 }
-.soup-card::before { content: '🐦 小鸟说：'; font-weight: 600; font-style: normal; color: var(--accent2); }
+.soup-card::before { content: var(--soup-label, '🐦 小鸟说：'); font-weight: 600; font-style: normal; color: var(--accent2); }
 
 /* ── Section ── */
 .section-label {
@@ -581,7 +581,7 @@ body.night::before { opacity: 0.85; }
     <div class="section-label">📋 今日任务 <span id="reading-pages-indicator" style="margin-left:auto;margin-right:8px;font-weight:400;font-size:11px;color:var(--accent);"></span><span id="task-progress" style="font-weight:400">0/0</span></div>
     <div id="task-list"></div>
 
-    <div class="section-label" style="margin-top:18px;">🏆 小鸟排名 <span class="rank-update" id="rank-update-text">下次更新: --</span></div>
+    <div class="section-label" style="margin-top:18px;"><span id="rank-title">🏆 小鸟排名</span> <span class="rank-update" id="rank-update-text">下次更新: --</span></div>
     <div id="rank-list"></div>
   </div>
 
@@ -1163,30 +1163,45 @@ function save() {
 
 // ── Hogwarts Theme Data ──
 const HP_CREATURES = [
-  '猫头鹰','蟾蜍','猫','凤凰','独角兽','鹰头马身有翼兽','家养小精灵',
-  '匈牙利树蜂','挪威脊背龙','三头犬','人马','鹰头马','夜骐','狮鹫',
-  '人鱼','巨人','狼人','幽灵','博格特','护树罗锅','嗅嗅','驺吾',
-  '雷鸟','月痴兽','火螃蟹','狮身人面兽','蛇怪','八眼巨蛛','蒲绒绒',
-  '燕尾狗','马形水怪','鹰头猫','球遁鸟','莫特拉鼠','地精','变形怪',
-  '鹰头马身有翼兽','小矮妖','仙子','火灰蛇',
+  '哈利·波特','赫敏·格兰杰','罗恩·韦斯莱','德拉科·马尔福','卢娜·洛夫古德',
+  '纳威·隆巴顿','金妮·韦斯莱','弗雷德·韦斯莱','乔治·韦斯莱','西莫·斐尼甘',
+  '迪安·托马斯','秋·张','塞德里克·迪戈里','奥利弗·伍德','李·乔丹',
+  '珀西·韦斯莱','比尔·韦斯莱','查理·韦斯莱','唐克斯','卢平教授',
+  '小天狼星·布莱克','麦格教授','斯内普教授','海格','多比',
+  '克利切','闪闪','皮皮鬼','差点没头的尼克','血人巴罗',
+  '哭泣的桃金娘','费尔奇','洛丽丝夫人','巴克比克','福克斯',
+  '匈牙利树蜂','挪威脊背龙','夜骐','鹰头马身有翼兽','蛇怪',
 ];
 
 const HP_CHATTER = {
-  '猫头鹰': { emoji:'🦉', phrases:['咕～信到了','邮差永不迟到','海德薇！'], mood:'忠诚' },
-  '猫': { emoji:'🐱', phrases:['喵。','克鲁克山在盯着你','姜黄色是最好的'], mood:'傲娇' },
-  '凤凰': { emoji:'🦅', phrases:['浴火重生','福克斯的眼泪','邓布利多召唤我'], mood:'神圣' },
-  '独角兽': { emoji:'🦄', phrases:['只有纯洁的人能接近我','银色的血','月光下最美'], mood:'纯洁' },
-  '鹰头马身有翼兽': { emoji:'🦅', phrases:['先鞠躬！','巴克比克觉得很赞','呼——'], mood:'高傲' },
-  '家养小精灵': { emoji:'🧙', phrases:['多比是自由的小精灵！','主人需要袜子吗','闪闪在哭泣'], mood:'卑微' },
-  '匈牙利树蜂': { emoji:'🐉', phrases:['吼——','三强争霸赛 PTSD','我的蛋呢'], mood:'暴躁' },
-  '三头犬': { emoji:'🐕', phrases:['汪！汪！汪！','（三个头同时叫）','音乐让我睡着'], mood:'三重奏' },
-  '幽灵': { emoji:'👻', phrases:['差点没头的尼克','格兰芬多的幽灵在此','穿过活人的感觉好奇怪'], mood:'虚无' },
-  '嗅嗅': { emoji:'🦔', phrases:['闪闪发光的东西在哪儿','金币！金币！','口袋是个无底洞'], mood:'贪婪' },
-  '博格特': { emoji:'👹', phrases:['滑稽滑稽！','你最怕什么','我会变成它'], mood:'可怕' },
-  '蒲绒绒': { emoji:'🦔', phrases:['噗噗～','最可爱的魔法生物','别喂太饱'], mood:'可爱' },
-  '夜骐': { emoji:'🦇', phrases:['只有见过死亡的人才能看到我','（安静地拉着马车）'], mood:'神秘' },
-  '蛇怪': { emoji:'🐍', phrases:['嘶——','别看我眼睛','密室打开了'], mood:'危险' },
-  '凤凰': { emoji:'🦅', phrases:['浴火重生','福克斯的眼泪'], mood:'神圣' },
+  '哈利·波特': { emoji:'⚡', phrases:['除你武器！','我不想当名人...','我只不过是做了该做的事'], mood:'天命' },
+  '赫敏·格兰杰': { emoji:'📚', phrases:['我在《霍格沃茨：一段校史》里读到过——','实际上——',' leviosa 不是 levioSA'], mood:'学霸' },
+  '罗恩·韦斯莱': { emoji:'♟️', phrases:['Bloody hell!','又是我垫底？','蜘蛛！为什么总是蜘蛛！'], mood:'搞笑' },
+  '德拉科·马尔福': { emoji:'🐍', phrases:['我爸爸会听说的。','波特，你在炫耀吗','纯血统的荣耀不容玷污'], mood:'傲娇反派' },
+  '卢娜·洛夫古德': { emoji:'🔮', phrases:['骚扰虻又来了。','失去的东西总会回到我们身边','但不是以我们期待的方式'], mood:'空灵' },
+  '纳威·隆巴顿': { emoji:'🌿', phrases:['我...我只是做了该做的事','米布米宝长势喜人','格兰芬多之剑选择了我'], mood:'成长' },
+  '弗雷德·韦斯莱': { emoji:'🎆', phrases:['洞听！','乔治！你又偷了我的点子','严肃点，我们在搞破坏'], mood:'恶作剧' },
+  '乔治·韦斯莱': { emoji:'🧨', phrases:['弗雷德，这次该我了','没有耳朵也能听笑话','Weasley Wizard Wheezes！'], mood:'恶作剧' },
+  '金妮·韦斯莱': { emoji:'🦇', phrases:['蝙蝠精咒，想试试吗','我六岁就会骑扫帚了','别小看最小的韦斯莱'], mood:'彪悍' },
+  '多比': { emoji:'🧦', phrases:['多比是自由的小精灵！','多比不该说坏话...但主人确实很糟糕','一只袜子！'], mood:'忠诚' },
+  '麦格教授': { emoji:'🐱', phrases:['我警告过你，波特先生。','变成猫偷听——很有用','格兰芬多加十分？不太可能'], mood:'严厉' },
+  '斯内普教授': { emoji:'🦇', phrases:['显然...','翻到第394页。','你和你父亲一模一样——平庸而傲慢'], mood:'毒舌' },
+  '小天狼星·布莱克': { emoji:'🐕', phrases:['宁愿死也不会背叛朋友','詹姆会为你骄傲的','变成大黑狗——自由的感觉'], mood:'酷' },
+  '海格': { emoji:'🪓', phrases:['不该提起那件事...','小龙很可爱的！真的！','我可能有点偏心危险生物'], mood:'憨厚' },
+  '皮皮鬼': { emoji:'👻', phrases:['啦啦啦～费尔奇抓不到我！','恶作剧时间！','呸！讨厌的一年级新生！'], mood:'捣蛋' },
+  '哭泣的桃金娘': { emoji:'💧', phrases:['呜哇——没人理解我——','死在这里也挺好的（啜泣）','你也是来嘲笑我的吗'], mood:'抑郁' },
+  '洛丽丝夫人': { emoji:'🐱', phrases:['（阴森地盯着你）','喵——','费尔奇，那边有人违反校规'], mood:'阴险' },
+  '唐克斯': { emoji:'💜', phrases:['别叫我尼法朵拉！','今天的头发是紫色','莱姆斯，你看——'], mood:'飒爽' },
+  '匈牙利树蜂': { emoji:'🐉', phrases:['吼————！','三强争霸赛还不够惨吗','我认得那个蛋！'], mood:'暴躁' },
+  '巴克比克': { emoji:'🦅', phrases:['（优雅地鞠躬）','呱！','不给貂鼠就啄你'], mood:'高傲' },
+  '福克斯': { emoji:'🔥', phrases:['浴火重生——','分院帽里有格兰芬多之剑','邓布利多，我在'], mood:'神圣' },
+  '秋·张': { emoji:'🍂', phrases:['对不起哈利...','塞德里克...','我只是需要时间'], mood:'忧伤' },
+  '塞德里克·迪戈里': { emoji:'🏆', phrases:['真正的赫奇帕奇不会逃跑','公平竞争！','奖杯属于霍格沃茨'], mood:'正直' },
+  '卢平教授': { emoji:'🌕', phrases:['满月了...离我远点','巧克力能帮助缓解摄魂怪后遗症','最好的黑魔法防御术老师'], mood:'温和' },
+  '克利切': { emoji:'🍽️', phrases:['肮脏的泥巴种...主人原谅我...','雷古勒斯少爷的挂坠盒...','老克利切不会忘记'], mood:'扭曲' },
+  '西莫·斐尼甘': { emoji:'💥', phrases:['这次真的不会爆炸——','BOOM！','抱歉，我好像又...'], mood:'炸裂' },
+  '奥利弗·伍德': { emoji:'🏏', phrases:['魁地奇比生命更重要！','今年一定要拿学院杯','鬼飞球！游走球！金色飞贼！'], mood:'狂热' },
+  '珀西·韦斯莱': { emoji:'📜', phrases:['根据《级长权力条例》第12条...','坩埚厚度标准化运动！','比起家人我更在乎...（后来还是回来了）'], mood:'官僚' },
 };
 
 const HP_TIER_CONFIG = {
@@ -1212,18 +1227,18 @@ const HP_SOUP = [
 ];
 
 const HP_MADAM_QUOTES = {
-  morning_unfinished: ['起床。魔药课不等人。','今天还有黑魔法防御术。'],
-  afternoon_slow: ['下午茶时间快过了。','进度如龟。'],
-  evening_urgent: ['公共休息室的火快灭了。','你还欠自己一篇论文。'],
-  midnight: ['宵禁了。费尔奇在巡逻。','回宿舍。马上。'],
-  task_done_early: ['不错。格兰芬多加十分。','效率可嘉。'],
-  task_done_late: ['至少完成了。','比不交作业强。'],
-  rank_up: ['学院排名上升了。','干得好。继续保持。'],
-  rank_down: ['滑了几名。明天追回来。','这不代表失败。'],
-  streak_7: ['一周全勤。麦格教授会感到骄傲。','七天。你比你想的更有毅力。'],
-  streak_break: ['连败不是结束。重新开始就是。','弦断了。重接就是。'],
-  settlement_promote: ['晋级了。霍格沃茨为你骄傲。','新阶段。继续前进。'],
-  settlement_demote: ['降级了。不是失败——是新的起点。'],
+  morning_unfinished: ['显然，你还没开始。','我变成猫蹲在这儿等，也比看你发呆强。'],
+  afternoon_slow: ['下午茶都快凉了。','进度堪比费尔奇走路——慢得令人发指。'],
+  evening_urgent: ['公共休息室的火要灭了。','你再不行动，我就去叫斯内普来盯你。'],
+  midnight: ['宵禁了，波特。','费尔奇在巡逻。我不帮你撒谎。'],
+  task_done_early: ['不错。格兰芬多加十分。','可以。比上次好。'],
+  task_done_late: ['迟交总比不交强。','我不问为什么晚了。反正问了你也是编的。'],
+  rank_up: ['学院排名上升。不过别得意——下周可能就掉回去。','还行。继续。'],
+  rank_down: ['掉了。坐在这儿自怨自艾没用。','降级不是世界末日。1978年格兰芬多也经历过。'],
+  streak_7: ['七天全勤。我印象里上次看到这种记录还是...算了，不说了。继续。','坚持一周了。麦格教授不会夸人，但她在名单上记了你。'],
+  streak_break: ['断了。然后呢？捡起来继续。','赫敏·格兰杰也有拿不到O的时候。你怕什么。'],
+  settlement_promote: ['晋级了。霍格沃茨会为你骄傲。不过骄傲完了还要干活。','新阶段。用行动证明你配得上。'],
+  settlement_demote: ['降级了。斯内普会笑。证明他错了。','跌下去不是失败——不爬回来才是。'],
   bird_soup: HP_SOUP,
 };
 
@@ -1245,6 +1260,32 @@ function applyTheme() {
   document.title = hp ? '⚡ 霍格沃茨追踪' : '🐦 小鸟生存追踪';
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = hp ? '#740001' : '#f3efe7';
+
+  // Update all theme-dependent UI labels
+  const labels = {
+    '#madam-card-label': hp ? '麦格教授：' : 'Madam：',
+    '#soup-card-label': hp ? '🕯️ 邓布利多说：' : '🐦 小鸟说：',
+    '#rank-title': hp ? '🏆 学院排名' : '🏆 小鸟排名',
+    '#shop-title': hp ? '🛒 对角巷' : '🛒 小鸟商店',
+    '#coin-name': hp ? '加隆' : '树枝币',
+    '#coin-icon': hp ? '🪙' : '🪙',
+    '#score-label': hp ? '学院分' : '树枝',
+    '#app-version': hp ? '霍格沃茨追踪器 v1.0' : '小鸟生存追踪器 v1.0',
+    '#nav-today': hp ? '今日' : '今日',
+    '#nav-shop': hp ? '对角巷' : '商店',
+  };
+  Object.entries(labels).forEach(([sel, txt]) => {
+    const el = document.querySelector(sel);
+    if (el) el.textContent = txt;
+  });
+
+  // Update Madam card ::before via CSS custom property injection
+  const madamLabel = hp ? '麦格教授：' : 'Madam：';
+  const soupLabel = hp ? '🕯️ 邓布利多说：' : '🐦 小鸟说：';
+  document.documentElement.style.setProperty('--madam-label', `'${madamLabel}'`);
+  document.documentElement.style.setProperty('--soup-label', `'${soupLabel}'`);
+  // Update shop items display
+  if (document.getElementById('screen-shop').classList.contains('active')) renderShop();
 }
 
 const DEFAULT_SHOP_ITEMS = [
@@ -2966,6 +3007,18 @@ ${text.includes('洗澡') || text.includes('刷牙') || text.includes('门') ? '
 
 // ── Rules Modal ──
 function showRulesModal() {
+  const hp = S.settings.theme === 'hogwarts';
+  const rulesEl = document.getElementById('rules-content');
+  if (!rulesEl) return;
+  rulesEl.innerHTML = hp
+    ? `<div style="margin-bottom:10px;"><b style="color:var(--accent);">🪄 学院分计算</b><br><small>学院分 = 连续天数×50% + 课程完成×30% + 完成速度×20% + 阅读论文加成<br>• 连续天数最多计30天<br>• 完成速度：中午前→100，傍晚→75，宵禁前→50，之后→25<br>• 每日读50页以上+5分，读完一本+5分</small></div>
+    <div style="margin-bottom:10px;"><b style="color:var(--accent);">🏰 等级晋升</b><br><small>入学新生→初级巫师→级长→学生会主席→梅林勋章→校长办公室<br>每14天大结算（至少参与10天）：均排前10晋级，后30降级</small></div>
+    <div style="margin-bottom:10px;"><b style="color:var(--accent);">⚡ 魔法排名</b><br><small>100位巫师/魔法生物，各有隐藏行为。每6小时更新排名，23点记录。</small></div>
+    <div style="margin-bottom:10px;"><b style="color:var(--accent);">🪙 加隆（日上限50）</b><br><small>每完成一门课+1（24h内新课不产币）· 达标日+3 · 全勤+5 · 读完一本书+10 · 晋级+20 · 初始50</small></div>`
+    : `<div style="margin-bottom:10px;"><b style="color:var(--accent);">🌿 树枝计算</b><br><small>树枝 = 连续天数×50% + 完成率×30% + 完成速度×20% + 阅读加成<br>• 连续天数最多计30天<br>• 完成速度：12点前→100，18点前→75，23点前→50，之后→25<br>• 每日读50页以上+5分，读完一本+5分</small></div>
+    <div style="margin-bottom:10px;"><b style="color:var(--accent);">🚀 等级系统</b><br><small>地球轨道→月球基地→火星前哨→小行星带→木星站→深空探索<br>每14天大结算（至少参与10天）：均排前10晋级，后30降级</small></div>
+    <div style="margin-bottom:10px;"><b style="color:var(--accent);">🐦 小鸟对手</b><br><small>100只小鸟，各有隐藏行为。每6小时更新排名，23点记录。</small></div>
+    <div style="margin-bottom:10px;"><b style="color:var(--accent);">🪙 树枝币（日上限50）</b><br><small>每完成任务+1（24h内新课不产币）· 达标日+3 · 全勤+5 · 读完一本书+10 · 晋级+20 · 初始50</small></div>`;
   document.getElementById('rules-modal').classList.remove('hidden');
 }
 function hideRulesModal() {
