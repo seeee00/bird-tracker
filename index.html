@@ -1877,11 +1877,11 @@ function checkBadges() {
 
 function getTierCfg() {
   // Safe lookup with fallback
-  const cfg = getTierCfg();
+  const cfg = ACTIVE_TIER[S.user.tier];
   if (cfg) return cfg;
   // tier key mismatch (e.g. after theme switch) — reset to first tier
   S.user.tier = Object.keys(ACTIVE_TIER)[0];
-  return getTierCfg();
+  return ACTIVE_TIER[S.user.tier];
 }
 function getBirdEmoji() {
   const cfg = getTierCfg();
