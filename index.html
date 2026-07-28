@@ -1838,7 +1838,7 @@ function checkBadges() {
   if (S.user.longestStreak >= 14) addBadge('streak14', '候鸟初飞', '🌅', '连续14天完成75%以上任务');
   if (S.user.longestStreak >= 30) addBadge('streak30', '不知疲倦的翅膀', '🪽', '连续30天完成75%以上任务');
 
-  const tierRank = ACTIVE_TIER[S.user.tier]?.rank || 1;
+  const tierRank = getTierCfg()?.rank || 1;
   if (tierRank >= 2) addBadge('tier2', '你好，邻居', '🌙', '晋级到月球基地');
   if (tierRank >= 3) addBadge('tier3', '红色尘土上的爪印', '🪐', '晋级到火星前哨');
   if (tierRank >= 4) addBadge('tier4', '石头缝里穿行', '☄️', '晋级到小行星带');
@@ -1875,8 +1875,16 @@ function checkBadges() {
    BIRD EMOJI BY TIER
    ═══════════════════════════════════════════════════════════════════════════ */
 
+function getTierCfg() {
+  // Safe lookup with fallback
+  const cfg = getTierCfg();
+  if (cfg) return cfg;
+  // tier key mismatch (e.g. after theme switch) — reset to first tier
+  S.user.tier = Object.keys(ACTIVE_TIER)[0];
+  return getTierCfg();
+}
 function getBirdEmoji() {
-  const cfg = ACTIVE_TIER[S.user.tier];
+  const cfg = getTierCfg();
   return cfg ? cfg.birdEmoji : '🐤';
 }
 
@@ -1903,7 +1911,7 @@ function getMadamQuote() {
   if (S.user.streak === 0 && S.user.longestStreak > 2) return pick(ACTIVE_QUOTES.streak_break);
 
   // Default based on tier
-  const cfg = ACTIVE_TIER[S.user.tier];
+  const cfg = getTierCfg();
   return cfg ? cfg.madam : '门在那边。';
 }
 
@@ -1925,7 +1933,7 @@ function renderToday() {
     avatarEl.textContent = getBirdEmoji();
   }
   document.getElementById('bird-name-display').textContent = S.user.birdName;
-  const cfg = ACTIVE_TIER[S.user.tier];
+  const cfg = getTierCfg();
   // Cycle day countdown
   if (!S.league.cycleStart) S.league.cycleStart = todayStr();
   const cycleDay = Math.floor((new Date(todayStr()) - new Date(S.league.cycleStart)) / 86400000) + 1;
@@ -2700,8 +2708,14 @@ function onBirdAvatarUpload(event) {
 }
 
 function switchTheme(val) {
+  // Convert tier: map by rank number
+  const oldTier = getTierCfg();
+  const rank = oldTier ? oldTier.rank : 1;
   S.settings.theme = val;
   applyTheme();
+  // Find matching tier by rank in new theme
+  const newTiers = Object.entries(ACTIVE_TIER).find(([k, v]) => v.rank === rank);
+  S.user.tier = newTiers ? newTiers[0] : Object.keys(ACTIVE_TIER)[0];
   // Regenerate league with new species
   S.league.users = generateBirdLeague(S.user.tier, todayStr());
   S.league.daySeed = todayStr();
@@ -2932,7 +2946,7 @@ async function sendMadamMsg() {
   const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
   const systemPrompt = `你是Madam——一个铁面无私但暗藏温柔的AI，专门辅助一位19岁ADHD女生。你说话极简，不哄不绕，毒舌但关心她。你的角色是帮她突破执行功能障碍。
 
-当前状态：她叫"${S.user.birdName}"，等级${ACTIVE_TIER[S.user.tier].name}，连续${S.user.streak}天完成任务。今天完成了${done}/${tasks.length}项任务。
+当前状态：她叫"${S.user.birdName}"，等级${getTierCfg().name}，连续${S.user.streak}天完成任务。今天完成了${done}/${tasks.length}项任务。
 
 规则：回复控制在30字以内。可以毒舌，可以踹她一脚，也可以温柔（但不要同时）。不要说"你应该""你为什么不"。
 ${text.includes('洗澡') || text.includes('刷牙') || text.includes('门') ? '如果她拖延不行动，直接说"门。"并催促。' : ''}`;
@@ -3146,7 +3160,7 @@ function init() {
   setInterval(checkRankUpdateTimer, 60000);
 
   console.log('🐦 小鸟生存追踪器已就绪');
-  console.log(`   等级: ${ACTIVE_TIER[S.user.tier].icon} ${ACTIVE_TIER[S.user.tier].name}`);
+  console.log(`   等级: ${getTierCfg().icon} ${getTierCfg().name}`);
   console.log(`   小鸟: ${S.user.birdName} ${getBirdEmoji()}`);
   console.log(`   连续: ${S.user.streak}天 | 排名: 计算中...`);
 }
