@@ -2180,7 +2180,8 @@ function renderTierHistory() {
     return;
   }
   el.innerHTML = history.map(h => {
-    const cfg = ACTIVE_TIER[h.tier];
+    let cfg = ACTIVE_TIER[h.tier];
+    if (!cfg) cfg = Object.values(ACTIVE_TIER).find(t => t.rank === (TIER_CONFIG[h.tier]?.rank || HP_TIER_CONFIG[h.tier]?.rank)) || Object.values(ACTIVE_TIER)[0];
     const resultEmoji = h.result === 'promote' ? '⬆️' : h.result === 'demote' ? '⬇️' : '➡️';
     return `
       <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;border-bottom:1px solid var(--sep);">
