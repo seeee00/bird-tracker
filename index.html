@@ -2964,7 +2964,7 @@ async function showBirdProfile(birdName, birdScore, birdRank) {
   const modal = document.getElementById('bird-profile-modal');
   const content = document.getElementById('bird-profile-content');
 
-  const chatter = BIRD_CHATTER[birdName] || { emoji: '🐦', mood: '普通', phrases: ['...'] };
+  const chatter = ACTIVE_CHATTER[birdName] || { emoji: '🐦', mood: '普通', phrases: ['...'] };
   const customImg = S.birdAvatars?.[birdName];
 
   // Generate tasks based on behavior or AI
@@ -3019,7 +3019,7 @@ async function showBirdProfile(birdName, birdScore, birdRank) {
     <div style="margin:12px 0;padding:10px 14px;background:var(--bg-input);border-radius:var(--radius-sm);font-size:13px;color:var(--text2);">
       <b>性格：</b>${escHtml(chatter.mood)}<br>
       <b>口头禅：</b>"${escHtml(chatter.phrases[0] || '...')}"<br>
-      <b>鸟设：</b>${BIRD_CHATTER[birdName]?.phrases?.slice(0,2).join(' / ') || '一只普通的小鸟'}
+      <b>鸟设：</b>${ACTIVE_CHATTER[birdName]?.phrases?.slice(0,2).join(' / ') || '一只普通的小鸟'}
     </div>
 
     <div class="section-label">📋 今日任务</div>
