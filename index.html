@@ -62,6 +62,42 @@ body.night {
   --glow: rgba(200,168,76,0.12);
 }
 
+/* ── Hogwarts Theme ── */
+body.hp-mode {
+  --bg-deep: #f5f0e8;
+  --bg-space: #e8dfd0;
+  --bg-card: rgba(255,250,240,0.9);
+  --bg-card-solid: #fffaf0;
+  --bg-input: rgba(240,230,210,0.9);
+  --text: #2c1810;
+  --text2: #5c3a28;
+  --muted: #8b7355;
+  --sep: rgba(120,80,40,0.12);
+  --accent: #740001;
+  --accent2: #ae0001;
+  --red: #8b0000;
+  --green: #1a472a;
+  --blue: #222f5b;
+  --glow: rgba(174,0,1,0.1);
+}
+body.hp-mode.night {
+  --bg-deep: #1a1410;
+  --bg-space: #1f1814;
+  --bg-card: rgba(30,22,16,0.9);
+  --bg-card-solid: #1e1610;
+  --bg-input: rgba(40,32,24,0.9);
+  --text: #f0ead8;
+  --text2: #c8bda0;
+  --muted: #8a7a60;
+  --sep: rgba(255,255,255,0.06);
+  --accent: #d4a017;
+  --accent2: #c49a10;
+  --red: #c04040;
+  --green: #3a7a4a;
+  --blue: #4a5a90;
+  --glow: rgba(212,160,23,0.12);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -655,6 +691,14 @@ body.night::before { opacity: 0.85; }
     </div>
 
     <div class="setting-row">
+      <div><div class="setting-label">🎨 主题皮肤</div><div class="setting-desc">切换小鸟森林 / 霍格沃茨</div></div>
+      <select class="cat-select" id="set-theme" onchange="switchTheme(this.value)" style="width:120px;">
+        <option value="bird">🐦 小鸟森林</option>
+        <option value="hogwarts">⚡ 霍格沃茨</option>
+      </select>
+    </div>
+
+    <div class="setting-row">
       <div><div class="setting-label">结算时间</div><div class="setting-desc">每日排名结算（0-23时）</div></div>
       <input class="text-input" id="set-reset-hour" type="number" min="0" max="23" style="width:70px;" onchange="updateResetHour()">
     </div>
@@ -1073,6 +1117,7 @@ function blankState() {
     },
     settings: {
       resetHour: 23,
+      theme: 'bird',   // 'bird' | 'hogwarts'
     },
   };
 }
@@ -1116,7 +1161,92 @@ function save() {
    DATE / STREAK LOGIC
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// ── Shop items catalog ──
+// ── Hogwarts Theme Data ──
+const HP_CREATURES = [
+  '猫头鹰','蟾蜍','猫','凤凰','独角兽','鹰头马身有翼兽','家养小精灵',
+  '匈牙利树蜂','挪威脊背龙','三头犬','人马','鹰头马','夜骐','狮鹫',
+  '人鱼','巨人','狼人','幽灵','博格特','护树罗锅','嗅嗅','驺吾',
+  '雷鸟','月痴兽','火螃蟹','狮身人面兽','蛇怪','八眼巨蛛','蒲绒绒',
+  '燕尾狗','马形水怪','鹰头猫','球遁鸟','莫特拉鼠','地精','变形怪',
+  '鹰头马身有翼兽','小矮妖','仙子','火灰蛇',
+];
+
+const HP_CHATTER = {
+  '猫头鹰': { emoji:'🦉', phrases:['咕～信到了','邮差永不迟到','海德薇！'], mood:'忠诚' },
+  '猫': { emoji:'🐱', phrases:['喵。','克鲁克山在盯着你','姜黄色是最好的'], mood:'傲娇' },
+  '凤凰': { emoji:'🦅', phrases:['浴火重生','福克斯的眼泪','邓布利多召唤我'], mood:'神圣' },
+  '独角兽': { emoji:'🦄', phrases:['只有纯洁的人能接近我','银色的血','月光下最美'], mood:'纯洁' },
+  '鹰头马身有翼兽': { emoji:'🦅', phrases:['先鞠躬！','巴克比克觉得很赞','呼——'], mood:'高傲' },
+  '家养小精灵': { emoji:'🧙', phrases:['多比是自由的小精灵！','主人需要袜子吗','闪闪在哭泣'], mood:'卑微' },
+  '匈牙利树蜂': { emoji:'🐉', phrases:['吼——','三强争霸赛 PTSD','我的蛋呢'], mood:'暴躁' },
+  '三头犬': { emoji:'🐕', phrases:['汪！汪！汪！','（三个头同时叫）','音乐让我睡着'], mood:'三重奏' },
+  '幽灵': { emoji:'👻', phrases:['差点没头的尼克','格兰芬多的幽灵在此','穿过活人的感觉好奇怪'], mood:'虚无' },
+  '嗅嗅': { emoji:'🦔', phrases:['闪闪发光的东西在哪儿','金币！金币！','口袋是个无底洞'], mood:'贪婪' },
+  '博格特': { emoji:'👹', phrases:['滑稽滑稽！','你最怕什么','我会变成它'], mood:'可怕' },
+  '蒲绒绒': { emoji:'🦔', phrases:['噗噗～','最可爱的魔法生物','别喂太饱'], mood:'可爱' },
+  '夜骐': { emoji:'🦇', phrases:['只有见过死亡的人才能看到我','（安静地拉着马车）'], mood:'神秘' },
+  '蛇怪': { emoji:'🐍', phrases:['嘶——','别看我眼睛','密室打开了'], mood:'危险' },
+  '凤凰': { emoji:'🦅', phrases:['浴火重生','福克斯的眼泪'], mood:'神圣' },
+};
+
+const HP_TIER_CONFIG = {
+  year1: { name:'入学新生', icon:'📜', emoji:'🕯️', color:'var(--tier-earth)', birdEmoji:'🦉', rank:1, madam:'欢迎来到霍格沃茨。' },
+  year2: { name:'初级巫师', icon:'🪄', emoji:'✨', color:'var(--tier-moon)', birdEmoji:'🧙', rank:2, madam:'尚可。继续练习。' },
+  year3: { name:'级长',     icon:'🏅', emoji:'🛡️', color:'var(--tier-mars)', birdEmoji:'⚡', rank:3, madam:'有点样子了。' },
+  year4: { name:'学生会主席', icon:'👑', emoji:'🏆', color:'var(--tier-asteroid)', birdEmoji:'🔥', rank:4, madam:'出色的领导者。' },
+  year5: { name:'梅林勋章', icon:'🎖️', emoji:'🌟', color:'var(--tier-jupiter)', birdEmoji:'🐉', rank:5, madam:'梅林也会为你骄傲。' },
+  year6: { name:'校长办公室', icon:'🏰', emoji:'🌠', color:'var(--tier-deep)', birdEmoji:'🦅', rank:6, madam:'你比魔法更强大。' },
+};
+
+const HP_SOUP = [
+  '幸福可以在最黑暗的日子里被发现，只要记得点亮灯光。',
+  '决定我们成为什么样的人的，不是我们的能力，而是我们的选择。',
+  '暂时向黑暗妥协不是因为害怕，而是为了积蓄力量。',
+  '不要怜悯死者，怜悯活人吧——尤其是那些没有爱地活着的人。',
+  '你在这里就够了。霍格沃茨会帮助那些值得帮助的人。',
+  '有疑问的时候，去图书馆。但也要相信自己的直觉。',
+  '勇气有很多种。在朋友面前坚持立场也需要极大的勇气。',
+  '死亡不过是另一场伟大的冒险。所以活着的时候，好好活。',
+  '即使在最黑暗的时刻，也有星星在闪耀。抬头看。',
+  '你不需要成为那个"被选中的人"。你已经被选中了——被你自己。',
+];
+
+const HP_MADAM_QUOTES = {
+  morning_unfinished: ['起床。魔药课不等人。','今天还有黑魔法防御术。'],
+  afternoon_slow: ['下午茶时间快过了。','进度如龟。'],
+  evening_urgent: ['公共休息室的火快灭了。','你还欠自己一篇论文。'],
+  midnight: ['宵禁了。费尔奇在巡逻。','回宿舍。马上。'],
+  task_done_early: ['不错。格兰芬多加十分。','效率可嘉。'],
+  task_done_late: ['至少完成了。','比不交作业强。'],
+  rank_up: ['学院排名上升了。','干得好。继续保持。'],
+  rank_down: ['滑了几名。明天追回来。','这不代表失败。'],
+  streak_7: ['一周全勤。麦格教授会感到骄傲。','七天。你比你想的更有毅力。'],
+  streak_break: ['连败不是结束。重新开始就是。','弦断了。重接就是。'],
+  settlement_promote: ['晋级了。霍格沃茨为你骄傲。','新阶段。继续前进。'],
+  settlement_demote: ['降级了。不是失败——是新的起点。'],
+  bird_soup: HP_SOUP,
+};
+
+// ── Active theme globals (switched by applyTheme) ──
+let ACTIVE_TIER = TIER_CONFIG;
+let ACTIVE_SPECIES = BIRD_SPECIES;
+let ACTIVE_CHATTER = BIRD_CHATTER;
+let ACTIVE_QUOTES = MADAM_QUOTES;
+let ACTIVE_SOUP = ACTIVE_SOUP;
+
+function applyTheme() {
+  const hp = S.settings.theme === 'hogwarts';
+  ACTIVE_TIER = hp ? HP_TIER_CONFIG : TIER_CONFIG;
+  ACTIVE_SPECIES = hp ? HP_CREATURES : BIRD_SPECIES;
+  ACTIVE_CHATTER = hp ? HP_CHATTER : BIRD_CHATTER;
+  ACTIVE_QUOTES = hp ? HP_MADAM_QUOTES : MADAM_QUOTES;
+  ACTIVE_SOUP = hp ? HP_SOUP : ACTIVE_SOUP;
+  document.body.classList.toggle('hp-mode', hp);
+  document.title = hp ? '⚡ 霍格沃茨追踪' : '🐦 小鸟生存追踪';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = hp ? '#740001' : '#f3efe7';
+}
+
 const DEFAULT_SHOP_ITEMS = [
   { id:'shop_hat', name:'小礼帽', emoji:'🎩', price:25, category:'decoration' },
   { id:'shop_crown', name:'小王冠', emoji:'👑', price:150, category:'decoration' },
@@ -1457,16 +1587,16 @@ function generateBirdLeague(tier, dateStr) {
   for (let i = 0; i < 100; i++) {
     let speciesIdx = Math.floor(rng() * BIRD_SPECIES.length);
     // Avoid too many duplicates
-    if (usedSpecies.includes(BIRD_SPECIES[speciesIdx]) && usedSpecies.length < BIRD_SPECIES.length) {
+    if (usedSpecies.includes(ACTIVE_SPECIES[speciesIdx]) && usedSpecies.length < BIRD_SPECIES.length) {
       let tries = 0;
-      while (usedSpecies.includes(BIRD_SPECIES[speciesIdx]) && tries < 50) {
+      while (usedSpecies.includes(ACTIVE_SPECIES[speciesIdx]) && tries < 50) {
         speciesIdx = Math.floor(rng() * BIRD_SPECIES.length);
         tries++;
       }
     }
-    const species = BIRD_SPECIES[speciesIdx];
+    const species = ACTIVE_SPECIES[speciesIdx];
     usedSpecies.push(species);
-    const chatter = BIRD_CHATTER[species] || { emoji: '🐦', phrases: ['...'], mood: '普通' };
+    const chatter = ACTIVE_CHATTER[species] || { emoji: '🐦', phrases: ['...'], mood: '普通' };
 
     const timePatterns = ['dawn','morning','afternoon','dusk','night'];
     birds.push({
@@ -1708,7 +1838,7 @@ function checkBadges() {
   if (S.user.longestStreak >= 14) addBadge('streak14', '候鸟初飞', '🌅', '连续14天完成75%以上任务');
   if (S.user.longestStreak >= 30) addBadge('streak30', '不知疲倦的翅膀', '🪽', '连续30天完成75%以上任务');
 
-  const tierRank = TIER_CONFIG[S.user.tier]?.rank || 1;
+  const tierRank = ACTIVE_TIER[S.user.tier]?.rank || 1;
   if (tierRank >= 2) addBadge('tier2', '你好，邻居', '🌙', '晋级到月球基地');
   if (tierRank >= 3) addBadge('tier3', '红色尘土上的爪印', '🪐', '晋级到火星前哨');
   if (tierRank >= 4) addBadge('tier4', '石头缝里穿行', '☄️', '晋级到小行星带');
@@ -1746,7 +1876,7 @@ function checkBadges() {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function getBirdEmoji() {
-  const cfg = TIER_CONFIG[S.user.tier];
+  const cfg = ACTIVE_TIER[S.user.tier];
   return cfg ? cfg.birdEmoji : '🐤';
 }
 
@@ -1762,18 +1892,18 @@ function getMadamQuote() {
   const threshold = Math.ceil(tasks.length * 0.75);
   const allDone = done >= threshold && tasks.length > 0;
 
-  if (allDone && hour < 22) return pick(MADAM_QUOTES.task_done_early, {});
-  if (allDone && hour >= 22) return pick(MADAM_QUOTES.task_done_late, {});
-  if (done === 0 && hour >= 23) return pick(MADAM_QUOTES.midnight, {});
-  if (done === 0 && hour >= 18) return pick(MADAM_QUOTES.evening_urgent, {});
-  if (done === 0 && hour >= 10) return pick(MADAM_QUOTES.afternoon_slow, {});
-  if (done === 0) return pick(MADAM_QUOTES.morning_unfinished, {});
+  if (allDone && hour < 22) return pick(ACTIVE_QUOTES.task_done_early);
+  if (allDone && hour >= 22) return pick(ACTIVE_QUOTES.task_done_late);
+  if (done === 0 && hour >= 23) return pick(ACTIVE_QUOTES.midnight);
+  if (done === 0 && hour >= 18) return pick(ACTIVE_QUOTES.evening_urgent);
+  if (done === 0 && hour >= 10) return pick(ACTIVE_QUOTES.afternoon_slow);
+  if (done === 0) return pick(ACTIVE_QUOTES.morning_unfinished);
 
-  if (S.user.streak >= 7) return pick(MADAM_QUOTES.streak_7, {});
-  if (S.user.streak === 0 && S.user.longestStreak > 2) return pick(MADAM_QUOTES.streak_break, {});
+  if (S.user.streak >= 7) return pick(ACTIVE_QUOTES.streak_7);
+  if (S.user.streak === 0 && S.user.longestStreak > 2) return pick(ACTIVE_QUOTES.streak_break);
 
   // Default based on tier
-  const cfg = TIER_CONFIG[S.user.tier];
+  const cfg = ACTIVE_TIER[S.user.tier];
   return cfg ? cfg.madam : '门在那边。';
 }
 
@@ -1795,7 +1925,7 @@ function renderToday() {
     avatarEl.textContent = getBirdEmoji();
   }
   document.getElementById('bird-name-display').textContent = S.user.birdName;
-  const cfg = TIER_CONFIG[S.user.tier];
+  const cfg = ACTIVE_TIER[S.user.tier];
   // Cycle day countdown
   if (!S.league.cycleStart) S.league.cycleStart = todayStr();
   const cycleDay = Math.floor((new Date(todayStr()) - new Date(S.league.cycleStart)) / 86400000) + 1;
@@ -1827,8 +1957,8 @@ function renderToday() {
   document.getElementById('madam-quote').textContent = getMadamQuote();
 
   // Bird soup — daily random, same all day
-  const soupIdx = hashStr(todayStr() + '_soup') % MADAM_QUOTES.bird_soup.length;
-  document.getElementById('bird-soup').textContent = MADAM_QUOTES.bird_soup[soupIdx];
+  const soupIdx = hashStr(todayStr() + '_soup') % ACTIVE_SOUP.length;
+  document.getElementById('bird-soup').textContent = ACTIVE_SOUP[soupIdx];
 
   // Tasks
   document.getElementById('task-progress').textContent = `${done}/${tasks.length}`;
@@ -2302,6 +2432,8 @@ function addTask() {
 function renderSettings() {
   document.getElementById('set-bird-name').value = S.user.birdName;
   document.getElementById('set-reset-hour').value = S.settings.resetHour;
+  const themeSel = document.getElementById('set-theme');
+  if (themeSel) themeSel.value = S.settings.theme || 'bird';
   const apiKeyEl = document.getElementById('set-api-key');
   if (apiKeyEl) apiKeyEl.value = S.settings.deepseekKey || '';
   const aiTog = document.getElementById('ai-toggle');
@@ -2567,6 +2699,17 @@ function onBirdAvatarUpload(event) {
   event.target.value = '';
 }
 
+function switchTheme(val) {
+  S.settings.theme = val;
+  applyTheme();
+  // Regenerate league with new species
+  S.league.users = generateBirdLeague(S.user.tier, todayStr());
+  S.league.daySeed = todayStr();
+  save();
+  renderAll();
+  toast(val === 'hogwarts' ? '⚡ 欢迎来到霍格沃茨！' : '🐦 回到小鸟森林', 'promo');
+}
+
 function updateResetHour() {
   const val = parseInt(document.getElementById('set-reset-hour').value);
   if (val >= 0 && val <= 23) {
@@ -2789,7 +2932,7 @@ async function sendMadamMsg() {
   const done = tasks.filter(t => S.user.todayCompletions[t.id]).length;
   const systemPrompt = `你是Madam——一个铁面无私但暗藏温柔的AI，专门辅助一位19岁ADHD女生。你说话极简，不哄不绕，毒舌但关心她。你的角色是帮她突破执行功能障碍。
 
-当前状态：她叫"${S.user.birdName}"，等级${TIER_CONFIG[S.user.tier].name}，连续${S.user.streak}天完成任务。今天完成了${done}/${tasks.length}项任务。
+当前状态：她叫"${S.user.birdName}"，等级${ACTIVE_TIER[S.user.tier].name}，连续${S.user.streak}天完成任务。今天完成了${done}/${tasks.length}项任务。
 
 规则：回复控制在30字以内。可以毒舌，可以踹她一脚，也可以温柔（但不要同时）。不要说"你应该""你为什么不"。
 ${text.includes('洗澡') || text.includes('刷牙') || text.includes('门') ? '如果她拖延不行动，直接说"门。"并催促。' : ''}`;
@@ -2910,6 +3053,7 @@ function toggleAI() {
 function init() {
   applyDayNight();
   load();
+  applyTheme(); // Apply saved theme
   checkDayRollover();
 
   // Init AI toggle state
@@ -3002,7 +3146,7 @@ function init() {
   setInterval(checkRankUpdateTimer, 60000);
 
   console.log('🐦 小鸟生存追踪器已就绪');
-  console.log(`   等级: ${TIER_CONFIG[S.user.tier].icon} ${TIER_CONFIG[S.user.tier].name}`);
+  console.log(`   等级: ${ACTIVE_TIER[S.user.tier].icon} ${ACTIVE_TIER[S.user.tier].name}`);
   console.log(`   小鸟: ${S.user.birdName} ${getBirdEmoji()}`);
   console.log(`   连续: ${S.user.streak}天 | 排名: 计算中...`);
 }
