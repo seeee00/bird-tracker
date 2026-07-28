@@ -848,7 +848,7 @@ body.night::before { opacity: 0.85; }
 
     <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg-card);border-radius:var(--radius-sm);margin-bottom:14px;border:1px solid var(--sep);">
       <span style="font-size:28px;">🪙</span>
-      <div style="flex:1;"><div style="font-size:18px;font-weight:700;color:var(--accent);" id="shop-points">0</div><div style="font-size:11px;color:var(--muted);">树枝币</div></div>
+      <div style="flex:1;"><div style="font-size:18px;font-weight:700;color:var(--accent);" id="shop-points">0</div><div style="font-size:11px;color:var(--muted);" class="coin-label">树枝币</div></div>
       <span style="font-size:11px;color:var(--muted);">完成任务/读书/晋级获得</span>
     </div>
 
@@ -1393,6 +1393,11 @@ function uploadShopkeeper(event) {
 }
 
 function renderShop() {
+  // Theme-aware labels
+  const shopTitle = document.querySelector('#screen-shop .screen-header h2');
+  if (shopTitle) shopTitle.textContent = tShop();
+  document.querySelectorAll('.coin-label').forEach(el => el.textContent = tCoin());
+
   renderShopkeeper();
   if (!S.shop) S.shop = { inventory:[], equipped:null, customItems:[], itemImages:{} };
   if (!S.shop.itemImages) S.shop.itemImages = {};
@@ -2043,7 +2048,10 @@ function renderToday() {
       </div>`;
   }).join('');
 
-  // Rankings
+  // Rankings title
+  const rankTitleEl = document.getElementById('rank-title');
+  if (rankTitleEl) rankTitleEl.textContent = tRank();
+
   const nextUpdate = getNextUpdateText();
   document.getElementById('rank-update-text').textContent = '下次更新: ' + nextUpdate;
 
