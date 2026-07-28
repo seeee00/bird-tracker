@@ -751,7 +751,8 @@ body.night::before { opacity: 0.85; }
   <div class="modal hidden" id="rules-modal">
     <div class="modal-overlay" onclick="hideRulesModal()"></div>
     <div class="modal-sheet" style="max-height:80dvh;overflow-y:auto;">
-      <h3>📖 森林生存指南</h3>
+      <h3 id="rules-title">📖 森林生存指南</h3>
+      <div id="rules-content"></div>
 
       <div style="margin-bottom:14px;">
         <div style="font-weight:700;font-size:14px;color:var(--accent);margin-bottom:4px;">🌿 树枝（分数）计算</div>
@@ -3008,8 +3009,10 @@ ${text.includes('洗澡') || text.includes('刷牙') || text.includes('门') ? '
 // ── Rules Modal ──
 function showRulesModal() {
   const hp = S.settings.theme === 'hogwarts';
+  const titleEl = document.getElementById('rules-title');
   const rulesEl = document.getElementById('rules-content');
   if (!rulesEl) return;
+  if (titleEl) titleEl.textContent = hp ? '📖 霍格沃茨校规' : '📖 森林生存指南';
   rulesEl.innerHTML = hp
     ? `<div style="margin-bottom:10px;"><b style="color:var(--accent);">🪄 学院分计算</b><br><small>学院分 = 连续天数×50% + 课程完成×30% + 完成速度×20% + 阅读论文加成<br>• 连续天数最多计30天<br>• 完成速度：中午前→100，傍晚→75，宵禁前→50，之后→25<br>• 每日读50页以上+5分，读完一本+5分</small></div>
     <div style="margin-bottom:10px;"><b style="color:var(--accent);">🏰 等级晋升</b><br><small>入学新生→初级巫师→级长→学生会主席→梅林勋章→校长办公室<br>每14天大结算（至少参与10天）：均排前10晋级，后30降级</small></div>
