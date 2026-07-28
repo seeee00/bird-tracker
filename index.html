@@ -1232,7 +1232,7 @@ let ACTIVE_TIER = TIER_CONFIG;
 let ACTIVE_SPECIES = BIRD_SPECIES;
 let ACTIVE_CHATTER = BIRD_CHATTER;
 let ACTIVE_QUOTES = MADAM_QUOTES;
-let ACTIVE_SOUP = ACTIVE_SOUP;
+let ACTIVE_SOUP = MADAM_QUOTES.bird_soup;
 
 function applyTheme() {
   const hp = S.settings.theme === 'hogwarts';
@@ -1240,7 +1240,7 @@ function applyTheme() {
   ACTIVE_SPECIES = hp ? HP_CREATURES : BIRD_SPECIES;
   ACTIVE_CHATTER = hp ? HP_CHATTER : BIRD_CHATTER;
   ACTIVE_QUOTES = hp ? HP_MADAM_QUOTES : MADAM_QUOTES;
-  ACTIVE_SOUP = hp ? HP_SOUP : ACTIVE_SOUP;
+  ACTIVE_SOUP = hp ? HP_SOUP : MADAM_QUOTES.bird_soup;
   document.body.classList.toggle('hp-mode', hp);
   document.title = hp ? '⚡ 霍格沃茨追踪' : '🐦 小鸟生存追踪';
   const meta = document.querySelector('meta[name="theme-color"]');
@@ -1785,14 +1785,14 @@ function checkGrandSettlement() {
   let result;
   if (avgRank <= 10) {
     result = 'promote';
-    const tiers = Object.keys(TIER_CONFIG);
+    const tiers = Object.keys(ACTIVE_TIER);
     const idx = tiers.indexOf(S.user.tier);
     if (idx < tiers.length - 1) newTier = tiers[idx + 1];
   } else if (avgRank <= 70) {
     result = 'stay';
   } else {
     result = 'demote';
-    const tiers = Object.keys(TIER_CONFIG);
+    const tiers = Object.keys(ACTIVE_TIER);
     const idx = tiers.indexOf(S.user.tier);
     if (idx > 0) newTier = tiers[idx - 1];
   }
@@ -2172,7 +2172,7 @@ function renderTierHistory() {
     return;
   }
   el.innerHTML = history.map(h => {
-    const cfg = TIER_CONFIG[h.tier];
+    const cfg = ACTIVE_TIER[h.tier];
     const resultEmoji = h.result === 'promote' ? '⬆️' : h.result === 'demote' ? '⬇️' : '➡️';
     return `
       <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;border-bottom:1px solid var(--sep);">
@@ -3081,7 +3081,7 @@ function init() {
   // Run grand settlement if 14 days passed
   const grandResult = checkGrandSettlement();
   if (grandResult) {
-    const cfg = TIER_CONFIG[grandResult.newTier];
+    const cfg = ACTIVE_TIER[grandResult.newTier];
     if (grandResult.result === 'promote') {
       toast(`🚀 两周大结算晋级！${cfg.icon} ${cfg.name} · 均排 #${grandResult.avgRank}`, 'promo');
     } else if (grandResult.result === 'demote') {
@@ -3130,7 +3130,7 @@ function init() {
     }
     const grand = checkGrandSettlement();
     if (grand) {
-      const cfg = TIER_CONFIG[grand.newTier];
+      const cfg = ACTIVE_TIER[grand.newTier];
       if (grand.result === 'promote') {
         toast(`🚀 两周大结算！${cfg.icon} ${cfg.name}`, 'promo');
       } else if (grand.result === 'demote') {
